@@ -5,8 +5,6 @@
  * TODO: Not sure, if this always returns valid results. This has to be tested.
  */
 
-//todo: implement resetHook
-
 let rowIndex = 0,
     columnIndex = 0,
     isFirstColumn = true;
@@ -17,8 +15,42 @@ function randomColumnStrategy() {
     updateIndexes();
 }
 
+function resetRandomColumnStrategy() {
+    rowIndex = 0;
+    columnIndex = 0;
+    isFirstColumn = true;
+}
+
 function setCurrentField() {
-    tableArr[rowIndex][columnIndex] = Math.round(Math.random());
+    tableArr[rowIndex][columnIndex] = getFieldValue();
+}
+
+function getFieldValue() {
+    let value;
+
+    if (isFirstColumn) {
+        value = Math.round(Math.random())
+    }else {
+        value = isFieldAllowed() ? 1 : 0;
+    }
+
+    return value;
+}
+
+function isFieldAllowed() {
+    let allowed = true;
+    
+    //always allowed in first row and column
+    if (rowIndex > 0 && columnIndex > 0) {
+        const field1Filled = tableArr[rowIndex - 1][columnIndex - 1] === 1,
+            field2Filled = tableArr[rowIndex - 1][columnIndex] === 1,
+            field3Filled = tableArr[rowIndex][columnIndex - 1] === 1;
+        
+        //if all three neighbors already filled, we can't fill this guy...
+        allowed = !(field1Filled && field2Filled && field3Filled);
+    }
+
+    return allowed;
 }
 
 function updateIndexes() {
@@ -30,8 +62,9 @@ function updateIndexes() {
         
         if (rowIndex >= gridLn) {
             rowIndex = 0;
-            stop()
+            stop();
         }
+        isFirstColumn = false;
         columnIndex = 0;
     }
 }

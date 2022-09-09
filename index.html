@@ -1,12 +1,13 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js" integrity="sha512-WIklPM6qPCIp6d3fSSr90j+1unQHUOoWDS4sdTiR8gxUTnyZ8S2Mr8e10sKKJ/bhJgpAa/qG068RDkg6fIlNFA==" crossorigin="anonymous"></script>
+<script src="./lib/p5.min.js"></script>
 <script src="./util.js"></script>
 <script src="./randomColumnStrategy.js"></script>
 <script>
     const boxWid = 20, // Width of each cell
         gridLn = 30, // Grid is size gridLn x gridLn
         fps = 10,
-        strategy = randomColumnStrategy;
-    
+        executeStrategy = randomColumnStrategy,
+        resetStrategy = resetRandomColumnStrategy;
+
     let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
         state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
         button;
@@ -23,7 +24,14 @@
         } else if (state === 2) {
             state = 0;
             initTable();
+            resetStrategy();
             button.html('Start');
+        }
+    }
+
+    function keyPressed() {
+        if (key == ' ') { //this means space bar, since it is a space inside of the single quotes 
+            buttonPressed();
         }
     }
 
@@ -62,7 +70,7 @@
 
     function draw() {
         if (state === 1) {
-            strategy();
+            executeStrategy();
         }
         tableArr.forEach((rowArr, row) => {
             rowArr.forEach((colVal, col) => {
