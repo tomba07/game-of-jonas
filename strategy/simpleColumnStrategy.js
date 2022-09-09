@@ -1,19 +1,18 @@
 /*
  * This strategy thinks in columns.
  * The idea is to fill the first column randomly.
- * Beginning with the second column, it always paints a black square if possible.
- * TODO: Not sure, if this always returns valid results. This has to be tested.
+ * Then, beginning with the second column, it always paints a black square if possible.
+ * It does seem to generate valid patterns - they do however look pretty boring...
  */
 
-class RandomColumnStrategy extends BaseStrategy{
+class SimpleColumnStrategy extends BaseStrategy{
   #rowIndex = 0;
   #columnIndex = 0;
   #isFirstColumn = true;
 
-  execute(tableArr) {
+  execute(tableArr, fnCompleted) {
     this.#setCurrentField(tableArr);
-
-    this.#updateIndexes(tableArr.length);
+    this.#updateIndexes(tableArr.length, fnCompleted);
 
     return tableArr;
   }
@@ -59,16 +58,15 @@ class RandomColumnStrategy extends BaseStrategy{
     return allowed;
   }
 
-  #updateIndexes(tableSize) {
+  #updateIndexes(tableSize, fnCompleted) {
     this.#columnIndex++;
 
-    //update
     if (this.#columnIndex >= tableSize) {
       this.#rowIndex++;
 
       if (this.#rowIndex >= tableSize) {
         this.#rowIndex = 0;
-        stop();
+        fnCompleted();
       }
       this.#isFirstColumn = false;
       this.#columnIndex = 0;

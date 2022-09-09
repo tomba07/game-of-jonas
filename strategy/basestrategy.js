@@ -1,10 +1,12 @@
+/*
+ * This is a base class for implementing a strategy.
+ */
 class BaseStrategy {
     execute(tableArr) {
-        //add impl to alter tableArr
-        return tableArr;
+        //Add impl to alter tableArr
     }
 
     reset() {
-        //add impl if reset required
+        //Add impl if reset required
     }
 }

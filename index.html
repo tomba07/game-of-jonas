@@ -1,28 +1,30 @@
 <script src="./lib/p5.min.js"></script>
 <script src="./strategy/basestrategy.js"></script>
-<script src="./strategy/randomColumnStrategy.js"></script>
+<script src="./strategy/simpleColumnStrategy.js"></script>
 <script>
-  const boxWid = 20, // Width of each cell
-    gridLn = 30, // Grid is size gridLn x gridLn
-    fps = 60,
-    strategy = new RandomColumnStrategy();
+  const boxWid = 20, //Width of each cell
+    gridLn = 30, //Grid is size gridLn x gridLn
+    fps = 60, //Execution Speed
+    strategy = new SimpleColumnStrategy(); //Set according strategy here;
 
-  //todo: extract game state logic into class
+  //TODO: extract game state logic into class
   let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
     state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
     button;
 
-  // Populate the table with 0s
+  //Populate the table with 0s
   initTable();
 
   function buttonPressed() {
     if (state == 0) {
-      // If game hasn't yet started
+      //Start Game
       state = 1;
       button.html("Stop");
     } else if (state === 1) {
+      //Stop Game
       stop();
     } else if (state === 2) {
+      //Reset Game
       state = 0;
       initTable();
       strategy.reset();
@@ -31,11 +33,11 @@
   }
 
   function keyPressed() {
-    if (key == " ") {
-      //this means space bar, since it is a space inside of the single quotes
+    if (key === " ") {
+      //This means space bar, since it is a space inside of the single quotes
       buttonPressed();
 
-      // Prevent scrolling caused by default spacebar handling
+      //Prevent scrolling caused by default spacebar handling
       return false;
     }
   }
@@ -51,11 +53,11 @@
 
   function draw() {
     if (state === 1) {
-      tableArr = strategy.execute(tableArr);
+      tableArr = strategy.execute(tableArr, stop);
     }
     tableArr.forEach((rowArr, row) => {
       rowArr.forEach((colVal, col) => {
-        fill(colVal == 1 ? "black" : "transparent"); // Black if live, transparent if dead
+        fill(colVal === 1 ? "black" : "transparent"); // Black if live, transparent if dead
         rect(row * boxWid, col * boxWid, boxWid, boxWid);
       });
     });
