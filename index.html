@@ -94,9 +94,8 @@
 
     function draw() {
       tableArr.forEach((rowArr, row) => {
-        rowArr.forEach((colVal, col) => {
-          fill(colVal == 1 ? "black" : "transparent"); // Black if live, transparent if dead
-          rect(row * boxWid, col * boxWid, boxWid, boxWid);
+        rowArr.forEach((val, col) => {
+            drawRect(val, row, col);
         });
       });
       if (state == 1) {
@@ -121,5 +120,10 @@
         });
         tableArr = newTable; // Update the grid
       }
+    }
+
+    function drawRect(val, row, col) {
+        fill(val === 1 ? "black" : "transparent"); // Black if live, transparent if dead
+        rect(row * boxWid, col * boxWid, boxWid, boxWid);
     }
   </script>
