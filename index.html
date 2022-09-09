@@ -1,38 +1,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.min.js" integrity="sha512-WIklPM6qPCIp6d3fSSr90j+1unQHUOoWDS4sdTiR8gxUTnyZ8S2Mr8e10sKKJ/bhJgpAa/qG068RDkg6fIlNFA==" crossorigin="anonymous"></script>
 <script src="./util.js"></script>
+<script src="./randomColumnStrategy.js"></script>
 <script>
-    let boxWid = 20; // Width of each cell
-    let tableArr = []; //2D array of grid. 1 - Alive, 0 - Dead
-    let fps = 30; // 30 fps at start, 2 fps when game is active
-    gridLn = 30; // Grid is size gridLn x gridLn
-    let state = 0; // 0 = Setup, 1 = Active, 2 = Stopped
-
-    let button;
+    const boxWid = 20, // Width of each cell
+        gridLn = 30, // Grid is size gridLn x gridLn
+        fps = 10,
+        strategy = randomColumnStrategy;
+    
+    let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
+        state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
+        button;
 
     // Populate the table with 0s
     initTable();
 
-    function mousePressed() {
-        //todo: fix issues when pressing outside of playing area
-        if (state === 0) {
-            let row = (mouseX - (mouseX % boxWid)) / boxWid; // Grab nearest row above click
-            let col = (mouseY - (mouseY % boxWid)) / boxWid; // Grab nearest col left of click
-            if (row <= gridLn && col <= gridLn) { // Valid row, col
-                tableArr[row][col] = -1 * tableArr[row][col] + 1; // Invert the cell
-                draw(); // Redraw table
-            }
-        }
-    }
-
     function buttonPressed() {
         if (state == 0) { // If game hasn't yet started
-            setFPS(2);
             state = 1;
             button.html('Stop');
         } else if (state === 1) {
-            setFPS(30);
-            state = 2;
-            button.html('Reset');
+            stop()
         } else if (state === 2) {
             state = 0;
             initTable();
@@ -74,32 +61,14 @@
     }
 
     function draw() {
+        if (state === 1) {
+            strategy();
+        }
         tableArr.forEach((rowArr, row) => {
-            rowArr.forEach((val, col) => {
-                drawRect(val, row, col);
+            rowArr.forEach((colVal, col) => {
+                fill(colVal == 1 ? "black" : "transparent"); // Black if live, transparent if dead
+                rect(row * boxWid, col * boxWid, boxWid, boxWid);
             });
         });
-        if (state == 1) {
-            // Apply rules
-            let newTable = []; // Upcoming grid
-            tableArr.forEach((rowArr, row) => {
-                let newRow = [];
-                rowArr.forEach((colVal, col) => {
-                    let cellVal = colVal;
-                    let nCount = checkNeighbors(row, col);
-                    if (cellVal == 1 && nCount < 2) { // If live and <2 live neighbors
-                        cellVal = 0;
-                    } else if (cellVal == 1 && nCount > 3) { // If live and >3 live neighbors
-                        cellVal = 0;
-                    } else if (cellVal == 0 && nCount == 3) { // If dead and 3 live neighbors
-                        cellVal = 1;
-                    }
-
-                    newRow.push(cellVal);
-                });
-                newTable.push(newRow);
-            });
-            tableArr = newTable; // Update the grid
-        }
     }
 </script>
