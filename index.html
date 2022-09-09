@@ -1,85 +1,119 @@
 <script src="./lib/p5.min.js"></script>
-<script src="./util.js"></script>
-<script src="./randomColumnStrategy.js"></script>
+<script src="./strategy/basestrategy.js"></script>
+<script src="./strategy/randomColumnStrategy.js"></script>
 <script>
-    const boxWid = 20, // Width of each cell
-        gridLn = 30, // Grid is size gridLn x gridLn
-        fps = 10,
-        executeStrategy = randomColumnStrategy,
-        resetStrategy = resetRandomColumnStrategy;
+  const boxWid = 20, // Width of each cell
+    gridLn = 10, // Grid is size gridLn x gridLn
+    fps = 60,
+    strategy = new RandomColumnStrategy();
 
-    let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
-        state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
-        button;
+  //todo: extract game state logic into class
+  let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
+    state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
+    button;
 
-    // Populate the table with 0s
-    initTable();
+  // Populate the table with 0s
+  initTable();
 
-    function buttonPressed() {
-        if (state == 0) { // If game hasn't yet started
-            state = 1;
-            button.html('Stop');
-        } else if (state === 1) {
-            stop()
-        } else if (state === 2) {
-            state = 0;
-            initTable();
-            resetStrategy();
-            button.html('Start');
+  function buttonPressed() {
+    if (state == 0) {
+      // If game hasn't yet started
+      state = 1;
+      button.html("Stop");
+    } else if (state === 1) {
+      stop();
+    } else if (state === 2) {
+      state = 0;
+      initTable();
+      strategy.reset();
+      button.html("Start");
+    }
+  }
+
+  function keyPressed() {
+    if (key == " ") {
+      //this means space bar, since it is a space inside of the single quotes
+      buttonPressed();
+
+      // Prevent scrolling caused by default spacebar handling
+      return false;
+    }
+  }
+
+  function setup() {
+    // Runs on start
+    frameRate(fps);
+    createCanvas(1500, 1500);
+    button = createButton("Start");
+    button.position(gridLn * boxWid + 20, 30);
+    button.mousePressed(buttonPressed);
+  }
+
+  function checkNeighbors(row, col) {
+    // Return number of live neighbors
+    let count = 0;
+
+    for (let i = -1; i < 2; i++) {
+      //This checks the row above and row below
+      if (col + i >= 0 && col + i < gridLn - 1) {
+        // Check for valid column
+        if (row > 0 && tableArr[row - 1][col + i] == 1) {
+          count++;
         }
+        if (row < gridLn - 1 && tableArr[row + 1][col + i] == 1) {
+          count++;
+        }
+      }
     }
 
-    function keyPressed() {
-        if (key == ' ') { //this means space bar, since it is a space inside of the single quotes 
-            buttonPressed();
-        }
-
-        // Prevent scrolling caused by default spacebar handling
-        return false;
+    if (col - 1 >= 0 && tableArr[row][col - 1] == 1) {
+      // Check left cell
+      count++;
+    }
+    if (col + 1 < gridLn - 1 && tableArr[row][col + 1] == 1) {
+      // Check right cell
+      count++;
     }
 
-    function setup() { // Runs on start
-        frameRate(fps);
-        createCanvas(1500, 1500);
-        button = createButton("Start");
-        button.position(gridLn * boxWid + 20, 30);
-        button.mousePressed(buttonPressed);
+    return count;
+  }
+
+  function draw() {
+    if (state === 1) {
+      tableArr = strategy.execute(tableArr);
     }
+    tableArr.forEach((rowArr, row) => {
+      rowArr.forEach((colVal, col) => {
+        fill(colVal == 1 ? "black" : "transparent"); // Black if live, transparent if dead
+        rect(row * boxWid, col * boxWid, boxWid, boxWid);
+      });
+    });
+  }
 
-    function checkNeighbors(row, col) {
-        // Return number of live neighbors
-        let count = 0;
+  function initTable() {
+    tableArr = [];
 
-        for (let i = -1; i < 2; i++) { //This checks the row above and row below
-            if (col + i >= 0 && col + i < gridLn - 1) { // Check for valid column
-                if (row > 0 && tableArr[row - 1][col + i] == 1) {
-                    count++;
-                }
-                if (row < gridLn - 1 && tableArr[row + 1][col + i] == 1) {
-                    count++;
-                }
-            }
-        }
-
-        if (col - 1 >= 0 && tableArr[row][col - 1] == 1) { // Check left cell
-            count++;
-        }
-        if (col + 1 < gridLn - 1 && tableArr[row][col + 1] == 1) { // Check right cell
-            count++;
-        }
-
-        return count;
+    for (let r = 0; r < gridLn; r++) {
+      let rowArr = [];
+      for (let c = 0; c < gridLn; c++) {
+        rowArr.push(0);
+      }
+      tableArr.push(rowArr);
     }
+  }
 
-    function draw() {
-        if (state === 1) {
-            executeStrategy();
-        }
-        tableArr.forEach((rowArr, row) => {
-            rowArr.forEach((colVal, col) => {
-                fill(colVal == 1 ? "black" : "transparent"); // Black if live, transparent if dead
-                rect(row * boxWid, col * boxWid, boxWid, boxWid);
-            });
-        });
-    }
+  function drawRect(val, row, col) {
+    fill(val === 1 ? "black" : "transparent"); // Black if live, transparent if dead
+    rect(row * boxWid, col * boxWid, boxWid, boxWid);
+  }
+
+  function setFPS(newFps) {
+    fps = newFps;
+    frameRate(newFps);
+  }
+
+  function stop() {
+    state = 2;
+    button.html("Reset");
+  }
 </script>

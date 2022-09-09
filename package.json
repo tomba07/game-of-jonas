@@ -1,0 +1,12 @@
+{
+  "name": "game-of-jonas",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "start": "http-server"
+  },
+  "author": "",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
