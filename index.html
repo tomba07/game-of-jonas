@@ -2,18 +2,24 @@
 <script src="./strategy/basestrategy.js"></script>
 <script src="./strategy/simpleColumnStrategy.js"></script>
 <script>
-  const boxWid = 20, //Width of each cell
+  const cellWidth = 20, //Width of each cell
     gridLn = 30, //Grid is size gridLn x gridLn
     fps = 60, //Execution Speed
-    strategy = new SimpleColumnStrategy(); //Set according strategy here;
+    strategy = new SimpleColumnStrategy(); //Set according strategy here
 
-  //TODO: extract game state logic into class
-  let tableArr = [], //2D array of grid. 1 - Alive, 0 - Dead
+  let field = [], //2D array of grid. 1 - Alive, 0 - Dead
     state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
     button;
 
-  //Populate the table with 0s
-  initTable();
+  function setup() {
+    initField();
+    frameRate(fps);
+    createCanvas(1500, 1500);
+    button = createButton("Start");
+    button.position(gridLn * cellWidth + 20, 30);
+    button.mousePressed(buttonPressed);
+    renderField();
+  }
 
   function buttonPressed() {
     if (state == 0) {
@@ -26,15 +32,16 @@
     } else if (state === 2) {
       //Reset Game
       state = 0;
-      initTable();
+      initField();
       strategy.reset();
       button.html("Start");
+      renderField();
     }
   }
 
   function keyPressed() {
+    //Handle Space Bar button press
     if (key === " ") {
-      //This means space bar, since it is a space inside of the single quotes
       buttonPressed();
 
       //Prevent scrolling caused by default spacebar handling
@@ -42,47 +49,32 @@
     }
   }
 
-  function setup() {
-    // Runs on start
-    frameRate(fps);
-    createCanvas(1500, 1500);
-    button = createButton("Start");
-    button.position(gridLn * boxWid + 20, 30);
-    button.mousePressed(buttonPressed);
-  }
-
   function draw() {
     if (state === 1) {
-      tableArr = strategy.execute(tableArr, stop);
+      field = strategy.execute(field, stop);
+      renderField();
     }
-    tableArr.forEach((rowArr, row) => {
-      rowArr.forEach((colVal, col) => {
-        fill(colVal === 1 ? "black" : "transparent"); // Black if live, transparent if dead
-        rect(row * boxWid, col * boxWid, boxWid, boxWid);
+  }
+
+  function renderField() {
+    field.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        fill(value === 1 ? "black" : "transparent"); // Black if live, transparent if dead
+        rect(rowIndex * cellWidth, columnIndex * cellWidth, cellWidth, cellWidth);
       });
     });
   }
 
-  function initTable() {
-    tableArr = [];
+  function initField() {
+    field = [];
 
     for (let r = 0; r < gridLn; r++) {
-      let rowArr = [];
+      let row = [];
       for (let c = 0; c < gridLn; c++) {
-        rowArr.push(0);
+        row.push(0);
       }
-      tableArr.push(rowArr);
+      field.push(row);
     }
-  }
-
-  function drawRect(val, row, col) {
-    fill(val === 1 ? "black" : "transparent"); // Black if live, transparent if dead
-    rect(row * boxWid, col * boxWid, boxWid, boxWid);
-  }
-
-  function setFPS(newFps) {
-    fps = newFps;
-    frameRate(newFps);
   }
 
   function stop() {

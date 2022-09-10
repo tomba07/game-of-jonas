@@ -10,11 +10,11 @@ class SimpleColumnStrategy extends BaseStrategy{
   #columnIndex = 0;
   #isFirstColumn = true;
 
-  execute(tableArr, fnCompleted) {
-    this.#setCurrentField(tableArr);
-    this.#updateIndexes(tableArr.length, fnCompleted);
+  execute(field, fnCompleted) {
+    this.#setCurrentCell(field);
+    this.#updateIndexes(field.length, fnCompleted);
 
-    return tableArr;
+    return field;
   }
 
   reset() {
@@ -23,23 +23,23 @@ class SimpleColumnStrategy extends BaseStrategy{
     this.#isFirstColumn = true;
   }
 
-  #setCurrentField(tableArr) {
-    tableArr[this.#rowIndex][this.#columnIndex] = this.#getFieldValue(tableArr);
+  #setCurrentCell(field) {
+    field[this.#rowIndex][this.#columnIndex] = this.#getCellValue(field);
   }
 
-  #getFieldValue(tableArr) {
+  #getCellValue(field) {
     let value;
 
     if (this.#isFirstColumn) {
       value = Math.round(Math.random());
     } else {
-      value = this.#isFieldAllowed(tableArr) ? 1 : 0;
+      value = this.#isCellAllowed(field) ? 1 : 0;
     }
 
     return value;
   }
 
-  #isFieldAllowed(tableArr) {
+  #isCellAllowed(field) {
     const rowIndex = this.#rowIndex,
       columnIndex = this.#columnIndex;
 
@@ -47,24 +47,24 @@ class SimpleColumnStrategy extends BaseStrategy{
 
     //always allowed in first row and column
     if (rowIndex > 0 && columnIndex > 0) {
-      const field1Filled = tableArr[rowIndex - 1][columnIndex - 1] === 1,
-        field2Filled = tableArr[rowIndex - 1][columnIndex] === 1,
-        field3Filled = tableArr[rowIndex][columnIndex - 1] === 1;
+      const cell1Filled = field[rowIndex - 1][columnIndex - 1] === 1,
+        cell2Filled = field[rowIndex - 1][columnIndex] === 1,
+        cell3Filled = field[rowIndex][columnIndex - 1] === 1;
 
       //if all three neighbors already filled, we can't fill this guy...
-      allowed = !(field1Filled && field2Filled && field3Filled);
+      allowed = !(cell1Filled && cell2Filled && cell3Filled);
     }
 
     return allowed;
   }
 
-  #updateIndexes(tableSize, fnCompleted) {
+  #updateIndexes(fieldSize, fnCompleted) {
     this.#columnIndex++;
 
-    if (this.#columnIndex >= tableSize) {
+    if (this.#columnIndex >= fieldSize) {
       this.#rowIndex++;
 
-      if (this.#rowIndex >= tableSize) {
+      if (this.#rowIndex >= fieldSize) {
         this.#rowIndex = 0;
         fnCompleted();
       }
