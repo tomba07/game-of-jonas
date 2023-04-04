@@ -1,87 +1,76 @@
-<head>
-  <meta name="viewport" content="user-scalable=no,initial-scale=1,maximum-scale=1,minimum-scale=1,width=device-width">
-</head>
-<script src="./lib/p5.min.js"></script>
-<script src="./strategy/basestrategy.js"></script>
-<script src="./strategy/simpleColumnStrategy.js"></script>
-<script>
-  const cellWidth = 20, //Width of each cell
-    gridLn = 30, //Grid is size gridLn x gridLn
-    fps = 60, //Execution Speed
-    strategy = new SimpleColumnStrategy(); //Set according strategy here
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Random Squares</title>
+        <style>
+            body {
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background-color: #f0f0f0;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="squareCanvas" width="800" height="800"></canvas>
 
-  let field = [], //2D array of grid. 1 - Alive, 0 - Dead
-    state = 0, // 0 = Setup, 1 = Active, 2 = Stopped
-    button;
+        <script>
+            const canvas = document.getElementById("squareCanvas");
+            const ctx = canvas.getContext("2d");
 
-  function setup() {
-    initField();
-    frameRate(fps);
-    createCanvas(1500, 1500);
-    button = createButton("Start");
-    button.position(gridLn * cellWidth + 20, 30);
-    button.mousePressed(buttonPressed);
-    renderField();
-  }
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
 
-  function buttonPressed() {
-    if (state == 0) {
-      //Start Game
-      state = 1;
-      button.html("Stop");
-    } else if (state === 1) {
-      //Stop Game
-      stop();
-    } else if (state === 2) {
-      //Reset Game
-      state = 0;
-      initField();
-      strategy.reset();
-      button.html("Start");
-      renderField();
-    }
-  }
+            const squareSize = 20;
+            const rows = Math.ceil(canvas.height / squareSize);
+            const cols = Math.ceil(canvas.width / squareSize);
 
-  function keyPressed() {
-    //Handle Space Bar button press
-    if (key === " ") {
-      buttonPressed();
+            function drawSquare(x, y, color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x * squareSize, y * squareSize, squareSize, squareSize);
+            }
 
-      //Prevent scrolling caused by default spacebar handling
-      return false;
-    }
-  }
+            function isPattern(grid, x, y, color) {
+                const top = y > 0 ? grid[y - 1][x] : null;
+                const left = x > 0 ? grid[y][x - 1] : null;
+                const topLeft = y > 0 && x > 0 ? grid[y - 1][x - 1] : null;
 
-  function draw() {
-    if (state === 1) {
-      field = strategy.execute(field, stop);
-      renderField();
-    }
-  }
+                if (top === color && left === color && topLeft === color) {
+                    return true;
+                }
 
-  function renderField() {
-    field.forEach((row, rowIndex) => {
-      row.forEach((value, columnIndex) => {
-        fill(value === 1 ? "black" : "transparent"); // Black if live, transparent if dead
-        rect(rowIndex * cellWidth, columnIndex * cellWidth, cellWidth, cellWidth);
-      });
-    });
-  }
+                return false;
+            }
 
-  function initField() {
-    field = [];
+            function getColor(grid, x, y) {
+                let color;
 
-    for (let r = 0; r < gridLn; r++) {
-      let row = [];
-      for (let c = 0; c < gridLn; c++) {
-        row.push(0);
-      }
-      field.push(row);
-    }
-  }
+                do {
+                    color = Math.random() > 0.5 ? "black" : "white";
+                } while (isPattern(grid, x, y, color));
 
-  function stop() {
-    state = 2;
-    button.html("Reset");
-  }
-</script>
+                return color;
+            }
+
+            function createGrid() {
+                let grid = new Array(rows);
+
+                for (let y = 0; y < rows; y++) {
+                    grid[y] = new Array(cols);
+
+                    for (let x = 0; x < cols; x++) {
+                        const color = getColor(grid, x, y);
+                        grid[y][x] = color;
+                        drawSquare(x, y, color);
+                    }
+                }
+            }
+
+            createGrid();
+        </script>
+    </body>
+</html>
