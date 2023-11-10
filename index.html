@@ -1,76 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Random Squares</title>
-        <style>
-            body {
-                margin: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background-color: #f0f0f0;
-            }
-        </style>
-    </head>
-    <body>
-        <canvas id="squareCanvas" width="800" height="800"></canvas>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>100x100 Grid</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(100, 10px);
+            grid-gap: 1px;
+        }
 
-        <script>
-            const canvas = document.getElementById("squareCanvas");
-            const ctx = canvas.getContext("2d");
+        .cell {
+            width: 10px;
+            height: 10px;
+        }
 
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        .black {
+            background-color: black;
+        }
 
-            const squareSize = 20;
-            const rows = Math.ceil(canvas.height / squareSize);
-            const cols = Math.ceil(canvas.width / squareSize);
+        .white {
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid" id="grid"></div>
 
-            function drawSquare(x, y, color) {
-                ctx.fillStyle = color;
-                ctx.fillRect(x * squareSize, y * squareSize, squareSize, squareSize);
-            }
+    <script>
+        const grid = document.getElementById('grid');
+        const gridSize = 100;
+        const gridArray = Array(gridSize).fill().map(() => Array(gridSize).fill(null));
 
-            function isPattern(grid, x, y, color) {
-                const top = y > 0 ? grid[y - 1][x] : null;
-                const left = x > 0 ? grid[y][x - 1] : null;
-                const topLeft = y > 0 && x > 0 ? grid[y - 1][x - 1] : null;
+        function isValid(x, y, color) {
+            if (x > 0 && gridArray[x - 1][y] === color) return false;
+            if (y > 0 && gridArray[x][y - 1] === color) return false;
+            if (x > 0 && y > 0 && gridArray[x - 1][y - 1] === color) return false;
+            return true;
+        }
 
-                if (top === color && left === color && topLeft === color) {
-                    return true;
+        function getAlternativeColor(color) {
+            return color === 'black' ? 'white' : 'black';
+        }
+
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                let chosenColor = Math.random() > 0.5 ? 'black' : 'white';
+                if (!isValid(i, j, chosenColor)) {
+                    chosenColor = getAlternativeColor(chosenColor);
                 }
-
-                return false;
+                gridArray[i][j] = chosenColor;
+                const cell = document.createElement('div');
+                cell.classList.add('cell', chosenColor);
+                grid.appendChild(cell);
             }
-
-            function getColor(grid, x, y) {
-                let color;
-
-                do {
-                    color = Math.random() > 0.5 ? "black" : "white";
-                } while (isPattern(grid, x, y, color));
-
-                return color;
-            }
-
-            function createGrid() {
-                let grid = new Array(rows);
-
-                for (let y = 0; y < rows; y++) {
-                    grid[y] = new Array(cols);
-
-                    for (let x = 0; x < cols; x++) {
-                        const color = getColor(grid, x, y);
-                        grid[y][x] = color;
-                        drawSquare(x, y, color);
-                    }
-                }
-            }
-
-            createGrid();
-        </script>
-    </body>
+        }
+    </script>
+</body>
 </html>
