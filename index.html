@@ -1,76 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Random Squares</title>
-        <style>
-            body {
-                margin: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background-color: #f0f0f0;
-            }
-        </style>
-    </head>
-    <body>
-        <canvas id="squareCanvas" width="800" height="800"></canvas>
+<html>
+<head>
+    <title>Wave Function Collapse Simulation</title>
+    <style>
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(100, 10px);
+        }
+        .grid-item {
+            width: 10px;
+            height: 10px;
+            background-color: white;
+        }
+        .black {
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container" id="gridContainer"></div>
 
-        <script>
-            const canvas = document.getElementById("squareCanvas");
-            const ctx = canvas.getContext("2d");
+    <script>
+        const gridContainer = document.getElementById('gridContainer');
 
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        // Function to create the grid
+        function createGrid() {
+            const grid = Array.from({ length: 100 }, () => Array(100).fill(false));
 
-            const squareSize = 20;
-            const rows = Math.ceil(canvas.height / squareSize);
-            const cols = Math.ceil(canvas.width / squareSize);
-
-            function drawSquare(x, y, color) {
-                ctx.fillStyle = color;
-                ctx.fillRect(x * squareSize, y * squareSize, squareSize, squareSize);
-            }
-
-            function isPattern(grid, x, y, color) {
-                const top = y > 0 ? grid[y - 1][x] : null;
-                const left = x > 0 ? grid[y][x - 1] : null;
-                const topLeft = y > 0 && x > 0 ? grid[y - 1][x - 1] : null;
-
-                if (top === color && left === color && topLeft === color) {
-                    return true;
-                }
-
-                return false;
-            }
-
-            function getColor(grid, x, y) {
-                let color;
-
-                do {
-                    color = Math.random() > 0.5 ? "black" : "white";
-                } while (isPattern(grid, x, y, color));
-
-                return color;
-            }
-
-            function createGrid() {
-                let grid = new Array(rows);
-
-                for (let y = 0; y < rows; y++) {
-                    grid[y] = new Array(cols);
-
-                    for (let x = 0; x < cols; x++) {
-                        const color = getColor(grid, x, y);
-                        grid[y][x] = color;
-                        drawSquare(x, y, color);
+            for (let x = 0; x < 100; x++) {
+                for (let y = 0; y < 100; y++) {
+                    let isBlack = Math.random() < 0.5;
+                    if (x > 0 && y > 0) {
+                        // Ensure no 2x2 same color blocks
+                        if (grid[x - 1][y] === isBlack && grid[x][y - 1] === isBlack && grid[x - 1][y - 1] === isBlack) {
+                            isBlack = !isBlack; // Flip color to avoid 2x2 block
+                        }
                     }
+                    grid[x][y] = isBlack;
+
+                    // Create the grid item
+                    const item = document.createElement('div');
+                    item.classList.add('grid-item');
+                    if (isBlack) item.classList.add('black');
+                    gridContainer.appendChild(item);
                 }
             }
+        }
 
-            createGrid();
-        </script>
-    </body>
+        // Initialize the grid
+        createGrid();
+    </script>
+</body>
 </html>
