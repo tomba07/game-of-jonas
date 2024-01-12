@@ -23,6 +23,7 @@
   <body>
     <p id="actionText">Press the button to start collapsing cells.</p>
     <button id="collapseButton">Collapse Next Cell</button>
+    <button id="undoButton">Undo Last Action</button>
     <button id="playButton">Play</button>
     <div class="grid-container" id="gridContainer"></div>
 
@@ -31,7 +32,7 @@
 
       // Grid dimensions
       const gridSize = 10;
-      const maxRetries = 3;
+      const maxRetries = 30;
 
       // Possible states
       const states = ["black", "white"];
@@ -40,6 +41,7 @@
       let intervalId = null; // Variable to store the interval ID
 
       document.getElementById("collapseButton").addEventListener("click", performWaveFunctionCollapseStep);
+      document.getElementById("undoButton").addEventListener("click", undoLastAction);
       document.getElementById("playButton").addEventListener("click", function () {
         if (intervalId === null) {
           // Start automatic stepping
@@ -52,7 +54,7 @@
               intervalId = null;
               document.getElementById("playButton").textContent = "Play"; // Change button text back to 'Play'
             }
-          }, 10); // Execute a step every 0.5 seconds
+          }, 1); // Execute a step every 0.5 seconds
         } else {
           // Stop automatic stepping
           clearInterval(intervalId);
@@ -82,6 +84,17 @@
             gridContainer.appendChild(cell);
           });
         });
+      }
+
+      function undoLastAction() {
+        if (decisionStack.length > 0) {
+          let lastDecision = decisionStack.pop();
+          restoreGridToPreviousState(grid, lastDecision.gridSnapshot);
+          displayGrid(grid); // Update the grid display
+          updateActionText("Undid last action.");
+        } else {
+          updateActionText("No more actions to undo.");
+        }
       }
 
       function selectCellToCollapse(grid) {
@@ -239,7 +252,7 @@
           let { x, y, triedStates, allStates, retryCount } = lastDecision;
           let remainingStates = allStates.filter((s) => !triedStates.includes(s));
 
-          if (remainingStates.length > 0) {
+          if (remainingStates.length > 0 && retryCount < maxRetries) {
             let newState = remainingStates[0];
             triedStates.push(newState);
             grid[x][y] = [newState];
@@ -247,7 +260,7 @@
             propagateConstraints(grid, x, y);
             return true;
           } else {
-            decisionStack.pop(); // Remove the decision if all states have been tried
+            decisionStack.pop(); // Remove the decision if all states have been tried or max retries reached
           }
         }
         return false;
@@ -269,23 +282,21 @@
       let actionText = ""; // Text describing the last action
 
       function performWaveFunctionCollapseStep() {
-        let action = ""; // To store the description of the action
+        let action = "";
 
         if (!isGridFullyCollapsed(grid)) {
           if (detectContradiction(grid)) {
             if (decisionStack.length > 0) {
               let lastDecision = decisionStack[decisionStack.length - 1];
-              updateActionText(`Backtracking at cell (${lastDecision.cell.x}, ${lastDecision.cell.y}), Retry count: ${lastDecision.retryCount}`);
+              action = `Backtracking at cell (${lastDecision.x}, ${lastDecision.y}), Retry count: ${lastDecision.retryCount}`;
               tryDifferentDecision(grid, decisionStack);
             } else {
-              updateActionText("No more moves to backtrack. Grid is stuck.");
+              action = "No more moves to backtrack. Grid is stuck.";
             }
           } else {
             let cell = selectCellToCollapse(grid);
             if (cell) {
-              let gridSnapshot = copyGrid(grid);
               collapseCell(grid, cell); // Using the updated function
-              decisionStack.push({ cell, state: grid[cell.x][cell.y][0], gridSnapshot });
               propagateConstraints(grid, cell.x, cell.y);
               action = "Collapsed cell at (" + cell.x + ", " + cell.y + ")";
             }
