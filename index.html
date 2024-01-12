@@ -23,6 +23,19 @@
     <script>
         const gridContainer = document.getElementById('gridContainer');
 
+        // Function to check if a 2x2 block is uniformly colored or checkered
+        function isInvalid2x2(x, y, grid, isBlack) {
+            if (x <= 0 || y <= 0) return false;
+
+            // Check for uniform color
+            let uniformColor = grid[x - 1][y] === isBlack && grid[x][y - 1] === isBlack && grid[x - 1][y - 1] === isBlack;
+
+            // Check for checkered pattern
+            let checkeredPattern = (grid[x - 1][y] !== isBlack) && (grid[x][y - 1] !== isBlack) && (grid[x - 1][y - 1] === isBlack);
+
+            return uniformColor || checkeredPattern;
+        }
+
         // Function to create the grid
         function createGrid() {
             const grid = Array.from({ length: 100 }, () => Array(100).fill(false));
@@ -30,11 +43,8 @@
             for (let x = 0; x < 100; x++) {
                 for (let y = 0; y < 100; y++) {
                     let isBlack = Math.random() < 0.5;
-                    if (x > 0 && y > 0) {
-                        // Ensure no 2x2 same color blocks
-                        if (grid[x - 1][y] === isBlack && grid[x][y - 1] === isBlack && grid[x - 1][y - 1] === isBlack) {
-                            isBlack = !isBlack; // Flip color to avoid 2x2 block
-                        }
+                    if (isInvalid2x2(x, y, grid, isBlack)) {
+                        isBlack = !isBlack; // Flip color to avoid invalid 2x2 block
                     }
                     grid[x][y] = isBlack;
 
