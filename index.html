@@ -1,64 +1,307 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Wave Function Collapse Simulation</title>
     <style>
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(100, 10px);
-        }
-        .grid-item {
-            width: 10px;
-            height: 10px;
-            background-color: white;
-        }
-        .black {
-            background-color: black;
-        }
+      .grid-container {
+        display: grid;
+        grid-template-columns: repeat(10, 10px);
+      }
+      .grid-item {
+        width: 10px;
+        height: 10px;
+        background-color: white;
+      }
+      .black {
+        background-color: black;
+      }
+      .uncollapsed {
+        background-color: lightgrey;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <p id="actionText">Press the button to start collapsing cells.</p>
+    <button id="collapseButton">Collapse Next Cell</button>
+    <button id="playButton">Play</button>
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
-        const gridContainer = document.getElementById('gridContainer');
+      const gridContainer = document.getElementById("gridContainer");
 
-        // Function to check if a 2x2 block is uniformly colored or checkered
-        function isInvalid2x2(x, y, grid, isBlack) {
-            if (x <= 0 || y <= 0) return false;
+      // Grid dimensions
+      const gridSize = 10;
+      const maxRetries = 3;
 
-            // Check for uniform color
-            let uniformColor = grid[x - 1][y] === isBlack && grid[x][y - 1] === isBlack && grid[x - 1][y - 1] === isBlack;
+      // Possible states
+      const states = ["black", "white"];
+      // Initialize grid
+      let grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+      let intervalId = null; // Variable to store the interval ID
 
-            // Check for checkered pattern
-            let checkeredPattern = (grid[x - 1][y] !== isBlack) && (grid[x][y - 1] !== isBlack) && (grid[x - 1][y - 1] === isBlack);
-
-            return uniformColor || checkeredPattern;
-        }
-
-        // Function to create the grid
-        function createGrid() {
-            const grid = Array.from({ length: 100 }, () => Array(100).fill(false));
-
-            for (let x = 0; x < 100; x++) {
-                for (let y = 0; y < 100; y++) {
-                    let isBlack = Math.random() < 0.5;
-                    if (isInvalid2x2(x, y, grid, isBlack)) {
-                        isBlack = !isBlack; // Flip color to avoid invalid 2x2 block
-                    }
-                    grid[x][y] = isBlack;
-
-                    // Create the grid item
-                    const item = document.createElement('div');
-                    item.classList.add('grid-item');
-                    if (isBlack) item.classList.add('black');
-                    gridContainer.appendChild(item);
-                }
+      document.getElementById("collapseButton").addEventListener("click", performWaveFunctionCollapseStep);
+      document.getElementById("playButton").addEventListener("click", function () {
+        if (intervalId === null) {
+          // Start automatic stepping
+          this.textContent = "Pause"; // Change button text to 'Pause'
+          intervalId = setInterval(function () {
+            if (!isGridFullyCollapsed(grid)) {
+              performWaveFunctionCollapseStep();
+            } else {
+              clearInterval(intervalId); // Stop the interval when done
+              intervalId = null;
+              document.getElementById("playButton").textContent = "Play"; // Change button text back to 'Play'
             }
+          }, 10); // Execute a step every 0.5 seconds
+        } else {
+          // Stop automatic stepping
+          clearInterval(intervalId);
+          intervalId = null;
+          this.textContent = "Play"; // Change button text back to 'Play'
+        }
+      });
+
+      //render initial grid
+      displayGrid(grid);
+
+      // Function to display the grid
+      function displayGrid(grid) {
+        // Clear existing grid
+        gridContainer.innerHTML = "";
+        // Create and display cells
+        grid.forEach((row) => {
+          row.forEach((cellState) => {
+            const cell = document.createElement("div");
+            cell.className = "grid-item";
+            if (cellState.length === 1) {
+              cell.classList.add(cellState[0]);
+            } else {
+              // Add 'uncollapsed' class for cells in superposition
+              cell.classList.add("uncollapsed");
+            }
+            gridContainer.appendChild(cell);
+          });
+        });
+      }
+
+      function selectCellToCollapse(grid) {
+        let minOptions = Infinity;
+        let cellsWithMinEntropy = [];
+
+        for (let x = 0; x < gridSize; x++) {
+          for (let y = 0; y < gridSize; y++) {
+            const options = grid[x][y];
+            if (options.length > 1) {
+              if (options.length < minOptions) {
+                minOptions = options.length;
+                cellsWithMinEntropy = [{ x, y }];
+              } else if (options.length === minOptions) {
+                cellsWithMinEntropy.push({ x, y });
+              }
+            }
+          }
         }
 
-        // Initialize the grid
-        createGrid();
+        if (cellsWithMinEntropy.length > 0) {
+          // Randomly select one of the cells with minimum entropy
+          const randomIndex = Math.floor(Math.random() * cellsWithMinEntropy.length);
+          return cellsWithMinEntropy[randomIndex];
+        }
+
+        return null;
+      }
+
+      function collapseCell(grid, cell) {
+        let { x, y } = cell;
+        let cellStates = grid[x][y];
+        if (cellStates.length > 1) {
+          let collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
+          grid[x][y] = [collapsedState];
+          decisionStack.push({
+            x,
+            y, // Coordinates of the cell
+            triedStates: [collapsedState], // States that have been tried
+            allStates: [...cellStates], // All possible states for this cell
+            retryCount: 0, // Retry count for this cell
+            gridSnapshot: copyGrid(grid) // Snapshot of the grid at this decision
+          });
+        }
+      }
+
+      function propagateConstraints(grid, x, y) {
+        let toProcess = [{ x, y }];
+
+        while (toProcess.length > 0) {
+          let { x, y } = toProcess.shift();
+          let neighbors = getNeighbors(x, y, gridSize);
+          let collapsedState = grid[x][y][0];
+
+          neighbors.forEach((neighbor) => {
+            let { x: nx, y: ny } = neighbor;
+            let neighborStates = grid[nx][ny];
+
+            if (neighborStates.length > 1) {
+              let newStates = neighborStates.filter((state) => isValidState(nx, ny, state, grid));
+
+              if (newStates.length !== neighborStates.length) {
+                grid[nx][ny] = newStates;
+                if (newStates.length === 1) {
+                  // If a neighbor's state collapses, add it to the processing queue
+                  toProcess.push({ x: nx, y: ny });
+                }
+              }
+            }
+          });
+        }
+      }
+
+      function isValidState(x, y, state, grid) {
+        // Check all 2x2 grids including the cell (x, y)
+        for (let dx = -1; dx <= 0; dx++) {
+          for (let dy = -1; dy <= 0; dy++) {
+            let hasUniformColor = true;
+            let hasCheckeredPattern = true;
+            let firstColor = null;
+            let secondColor = null;
+
+            for (let i = 0; i < 2; i++) {
+              for (let j = 0; j < 2; j++) {
+                let nx = x + dx + i;
+                let ny = y + dy + j;
+
+                if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+                  let neighborState = nx === x && ny === y ? state : grid[nx][ny].length === 1 ? grid[nx][ny][0] : null;
+
+                  if (neighborState === null) {
+                    hasUniformColor = false;
+                    hasCheckeredPattern = false;
+                    continue;
+                  }
+
+                  if (i === 0 && j === 0) {
+                    firstColor = neighborState;
+                  } else if (i !== j && neighborState !== firstColor) {
+                    hasCheckeredPattern = false;
+                  } else if (i === j && neighborState !== firstColor) {
+                    hasUniformColor = false;
+                  }
+
+                  if (i === 1 && j === 1) {
+                    secondColor = neighborState;
+                  }
+                }
+              }
+            }
+
+            if (hasUniformColor || (hasCheckeredPattern && firstColor !== secondColor)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      function getNeighbors(x, y, gridSize) {
+        let neighbors = [];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue; // Skip the cell itself
+            let nx = x + dx;
+            let ny = y + dy;
+            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+              neighbors.push({ x: nx, y: ny });
+            }
+          }
+        }
+        return neighbors;
+      }
+
+      function isGridFullyCollapsed(grid) {
+        return grid.every((row) => row.every((cell) => cell.length === 1));
+      }
+
+      function detectContradiction(grid) {
+        for (let x = 0; x < gridSize; x++) {
+          for (let y = 0; y < gridSize; y++) {
+            if (grid[x][y].length === 0) {
+              return true; // Found a contradiction
+            }
+          }
+        }
+        return false; // No contradiction found
+      }
+
+      function tryDifferentDecision(grid, decisionStack) {
+        while (decisionStack.length > 0) {
+          let lastDecision = decisionStack[decisionStack.length - 1];
+          restoreGridToPreviousState(grid, lastDecision.gridSnapshot);
+
+          let { x, y, triedStates, allStates, retryCount } = lastDecision;
+          let remainingStates = allStates.filter((s) => !triedStates.includes(s));
+
+          if (remainingStates.length > 0) {
+            let newState = remainingStates[0];
+            triedStates.push(newState);
+            grid[x][y] = [newState];
+            lastDecision.retryCount++; // Increment retry count
+            propagateConstraints(grid, x, y);
+            return true;
+          } else {
+            decisionStack.pop(); // Remove the decision if all states have been tried
+          }
+        }
+        return false;
+      }
+
+      function restoreGridToPreviousState(grid, gridSnapshot) {
+        for (let x = 0; x < gridSize; x++) {
+          for (let y = 0; y < gridSize; y++) {
+            grid[x][y] = [...gridSnapshot[x][y]];
+          }
+        }
+      }
+
+      function copyGrid(grid) {
+        return grid.map((row) => row.map((cell) => [...cell]));
+      }
+
+      let decisionStack = []; // Global decision stack
+      let actionText = ""; // Text describing the last action
+
+      function performWaveFunctionCollapseStep() {
+        let action = ""; // To store the description of the action
+
+        if (!isGridFullyCollapsed(grid)) {
+          if (detectContradiction(grid)) {
+            if (decisionStack.length > 0) {
+              let lastDecision = decisionStack[decisionStack.length - 1];
+              updateActionText(`Backtracking at cell (${lastDecision.cell.x}, ${lastDecision.cell.y}), Retry count: ${lastDecision.retryCount}`);
+              tryDifferentDecision(grid, decisionStack);
+            } else {
+              updateActionText("No more moves to backtrack. Grid is stuck.");
+            }
+          } else {
+            let cell = selectCellToCollapse(grid);
+            if (cell) {
+              let gridSnapshot = copyGrid(grid);
+              collapseCell(grid, cell); // Using the updated function
+              decisionStack.push({ cell, state: grid[cell.x][cell.y][0], gridSnapshot });
+              propagateConstraints(grid, cell.x, cell.y);
+              action = "Collapsed cell at (" + cell.x + ", " + cell.y + ")";
+            }
+          }
+        } else {
+          action = "Grid fully collapsed!";
+        }
+
+        displayGrid(grid); // Update the grid display after each step
+        updateActionText(action); // Update the action text
+      }
+
+      function updateActionText(text) {
+        actionText = text;
+        document.getElementById("actionText").innerText = actionText;
+      }
     </script>
-</body>
+  </body>
 </html>
