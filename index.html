@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(10, 10px);
+        grid-template-columns: repeat(5, 10px);
       }
       .grid-item {
         width: 10px;
@@ -31,7 +31,7 @@
       const gridContainer = document.getElementById("gridContainer");
 
       // Grid dimensions
-      const gridSize = 10;
+      const gridSize = 5;
       const maxRetries = 30;
 
       // Possible states
@@ -71,8 +71,8 @@
         // Clear existing grid
         gridContainer.innerHTML = "";
         // Create and display cells
-        grid.forEach((row) => {
-          row.forEach((cellState) => {
+        grid.forEach((row, rowIndex) => {
+          row.forEach((cellState, columnIndex) => {
             const cell = document.createElement("div");
             cell.className = "grid-item";
             if (cellState.length === 1) {
@@ -81,6 +81,10 @@
               // Add 'uncollapsed' class for cells in superposition
               cell.classList.add("uncollapsed");
             }
+            // Add click event listener to log the possible states of the cell
+            cell.addEventListener("click", () => {
+              console.log(`Possible states for cell (${rowIndex}, ${columnIndex}): `, grid[rowIndex][columnIndex]);
+            });
             gridContainer.appendChild(cell);
           });
         });
