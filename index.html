@@ -23,7 +23,6 @@
   <body>
     <p id="actionText">Press the button to start collapsing cells.</p>
     <button id="collapseButton">Collapse Next Cell</button>
-    <button id="undoButton">Undo Last Action</button>
     <button id="playButton">Play</button>
     <div class="grid-container" id="gridContainer"></div>
 
@@ -41,7 +40,6 @@
       let intervalId = null; // Variable to store the interval ID
 
       document.getElementById("collapseButton").addEventListener("click", performWaveFunctionCollapseStep);
-      document.getElementById("undoButton").addEventListener("click", undoLastAction);
       document.getElementById("playButton").addEventListener("click", function () {
         if (intervalId === null) {
           // Start automatic stepping
@@ -90,39 +88,22 @@
         });
       }
 
-      function undoLastAction() {
-        if (decisionStack.length > 0) {
-          let lastDecision = decisionStack.pop();
-          restoreGridToPreviousState(grid, lastDecision.gridSnapshot);
-          displayGrid(grid); // Update the grid display
-          updateActionText("Undid last action.");
-        } else {
-          updateActionText("No more actions to undo.");
-        }
-      }
-
       function selectCellToCollapse(grid) {
-        let minOptions = Infinity;
-        let cellsWithMinEntropy = [];
+        let pendingCells = [];
 
         for (let x = 0; x < gridSize; x++) {
           for (let y = 0; y < gridSize; y++) {
             const options = grid[x][y];
+
             if (options.length > 1) {
-              if (options.length < minOptions) {
-                minOptions = options.length;
-                cellsWithMinEntropy = [{ x, y }];
-              } else if (options.length === minOptions) {
-                cellsWithMinEntropy.push({ x, y });
-              }
+              pendingCells.push({ x, y });
             }
           }
         }
 
-        if (cellsWithMinEntropy.length > 0) {
-          // Randomly select one of the cells with minimum entropy
-          const randomIndex = Math.floor(Math.random() * cellsWithMinEntropy.length);
-          return cellsWithMinEntropy[randomIndex];
+        if (pendingCells.length > 0) {
+          const randomIndex = Math.floor(Math.random() * pendingCells.length);
+          return pendingCells[randomIndex];
         }
 
         return null;
@@ -134,14 +115,6 @@
         if (cellStates.length > 1) {
           let collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
           grid[x][y] = [collapsedState];
-          decisionStack.push({
-            x,
-            y, // Coordinates of the cell
-            triedStates: [collapsedState], // States that have been tried
-            allStates: [...cellStates], // All possible states for this cell
-            retryCount: 0, // Retry count for this cell
-            gridSnapshot: copyGrid(grid) // Snapshot of the grid at this decision
-          });
         }
       }
 
@@ -160,12 +133,8 @@
             if (neighborStates.length > 1) {
               let newStates = neighborStates.filter((state) => isValidState(nx, ny, state, grid));
 
-              if (newStates.length !== neighborStates.length) {
-                grid[nx][ny] = newStates;
-                if (newStates.length === 1) {
-                  // If a neighbor's state collapses, add it to the processing queue
-                  toProcess.push({ x: nx, y: ny });
-                }
+              if (newStates.length === 1) {
+              } else if (newStates.length === 0) {
               }
             }
           });
@@ -248,36 +217,6 @@
         return false; // No contradiction found
       }
 
-      function tryDifferentDecision(grid, decisionStack) {
-        while (decisionStack.length > 0) {
-          let lastDecision = decisionStack[decisionStack.length - 1];
-          restoreGridToPreviousState(grid, lastDecision.gridSnapshot);
-
-          let { x, y, triedStates, allStates, retryCount } = lastDecision;
-          let remainingStates = allStates.filter((s) => !triedStates.includes(s));
-
-          if (remainingStates.length > 0 && retryCount < maxRetries) {
-            let newState = remainingStates[0];
-            triedStates.push(newState);
-            grid[x][y] = [newState];
-            lastDecision.retryCount++; // Increment retry count
-            propagateConstraints(grid, x, y);
-            return true;
-          } else {
-            decisionStack.pop(); // Remove the decision if all states have been tried or max retries reached
-          }
-        }
-        return false;
-      }
-
-      function restoreGridToPreviousState(grid, gridSnapshot) {
-        for (let x = 0; x < gridSize; x++) {
-          for (let y = 0; y < gridSize; y++) {
-            grid[x][y] = [...gridSnapshot[x][y]];
-          }
-        }
-      }
-
       function copyGrid(grid) {
         return grid.map((row) => row.map((cell) => [...cell]));
       }
@@ -290,10 +229,11 @@
 
         if (!isGridFullyCollapsed(grid)) {
           if (detectContradiction(grid)) {
+            let lastDecision = decisionStack[decisionStack.length - 1];
+            action = `Backtracking at cell (${lastDecision.x}, ${lastDecision.y}), Retry count: ${lastDecision.retryCount}`;
+            decisionStack.pop();
             if (decisionStack.length > 0) {
-              let lastDecision = decisionStack[decisionStack.length - 1];
-              action = `Backtracking at cell (${lastDecision.x}, ${lastDecision.y}), Retry count: ${lastDecision.retryCount}`;
-              tryDifferentDecision(grid, decisionStack);
+              grid = decisionStack[decisionStack.length - 1].gridSnapshot;
             } else {
               action = "No more moves to backtrack. Grid is stuck.";
             }
@@ -302,6 +242,9 @@
             if (cell) {
               collapseCell(grid, cell); // Using the updated function
               propagateConstraints(grid, cell.x, cell.y);
+              decisionStack.push({
+                gridSnapshot: copyGrid(grid) // Snapshot of the grid at this decision
+              });
               action = "Collapsed cell at (" + cell.x + ", " + cell.y + ")";
             }
           }
