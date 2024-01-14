@@ -134,7 +134,10 @@
               let newStates = neighborStates.filter((state) => isValidState(nx, ny, state, grid));
 
               if (newStates.length === 1) {
+                grid[nx][ny] = newStates;
               } else if (newStates.length === 0) {
+                debugger;
+                console.log("Contradiction found, have to backtrack...");
               }
             }
           });
@@ -142,49 +145,36 @@
       }
 
       function isValidState(x, y, state, grid) {
+        const gridCopy = copyGrid(grid);
+        const gridSize = grid.length;
+        gridCopy[x][y] = [state];
+
         // Check all 2x2 grids including the cell (x, y)
         for (let dx = -1; dx <= 0; dx++) {
           for (let dy = -1; dy <= 0; dy++) {
-            let hasUniformColor = true;
-            let hasCheckeredPattern = true;
-            let firstColor = null;
-            let secondColor = null;
-
-            for (let i = 0; i < 2; i++) {
-              for (let j = 0; j < 2; j++) {
-                let nx = x + dx + i;
-                let ny = y + dy + j;
-
-                if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
-                  let neighborState = nx === x && ny === y ? state : grid[nx][ny].length === 1 ? grid[nx][ny][0] : null;
-
-                  if (neighborState === null) {
-                    hasUniformColor = false;
-                    hasCheckeredPattern = false;
-                    continue;
-                  }
-
-                  if (i === 0 && j === 0) {
-                    firstColor = neighborState;
-                  } else if (i !== j && neighborState !== firstColor) {
-                    hasCheckeredPattern = false;
-                  } else if (i === j && neighborState !== firstColor) {
-                    hasUniformColor = false;
-                  }
-
-                  if (i === 1 && j === 1) {
-                    secondColor = neighborState;
-                  }
-                }
-              }
-            }
-
-            if (hasUniformColor || (hasCheckeredPattern && firstColor !== secondColor)) {
+            if (!is2x2Valid(dx + x, dy + y, gridSize)) {
               return false;
             }
           }
         }
         return true;
+      }
+
+      function is2x2Valid(topLeftX, topLeftY, gridSize) {
+        let result = true;
+
+        if (!(topLeftX < 0 || topLeftY < 0 || topLeftX >= gridSize - 1 || topLeftX >= gridSize - 1)) {
+          const color1 = grid[topLeftX][topLeftY];
+          const color2 = grid[topLeftX + 1][topLeftY];
+          const color3 = grid[topLeftX][topLeftY + 1];
+          const color4 = grid[topLeftX + 1][topLeftY + 1];
+          const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
+          const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
+
+          result = !allColorsSame && !checkeredPattern;
+        }
+
+        return result;
       }
 
       function getNeighbors(x, y, gridSize) {
