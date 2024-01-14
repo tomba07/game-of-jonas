@@ -20,7 +20,7 @@
       }
     </style>
   </head>
-  <body>
+  <bodColumn>
     <p id="actionText">Press the button to start collapsing cells.</p>
     <button id="collapseButton">Collapse Next Cell</button>
     <button id="playButton">Play</button>
@@ -91,12 +91,12 @@
       function selectCellToCollapse(grid) {
         let pendingCells = [];
 
-        for (let x = 0; x < gridSize; x++) {
-          for (let y = 0; y < gridSize; y++) {
-            const options = grid[x][y];
+        for (let row = 0; row < gridSize; row++) {
+          for (let column = 0; column < gridSize; column++) {
+            const options = grid[row][column];
 
             if (options.length > 1) {
-              pendingCells.push({ x, y });
+              pendingCells.push({ row, column });
             }
           }
         }
@@ -110,33 +110,32 @@
       }
 
       function collapseCell(grid, cell) {
-        let { x, y } = cell;
-        let cellStates = grid[x][y];
+        let { row, column } = cell;
+        let cellStates = grid[row][column];
         if (cellStates.length > 1) {
           let collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
-          grid[x][y] = [collapsedState];
+          grid[row][column] = [collapsedState];
         }
       }
 
-      function propagateConstraints(grid, x, y) {
-        let toProcess = [{ x, y }];
+      function propagateConstraints(grid, row, column) {
+        let toProcess = [{ row, column }];
 
         while (toProcess.length > 0) {
-          let { x, y } = toProcess.shift();
-          let neighbors = getNeighbors(x, y, gridSize);
-          let collapsedState = grid[x][y][0];
+          let { row, column } = toProcess.shift();
+          let neighbors = getNeighbors(row, column, gridSize);
+          let collapsedState = grid[row][column][0];
 
           neighbors.forEach((neighbor) => {
-            let { x: nx, y: ny } = neighbor;
-            let neighborStates = grid[nx][ny];
+            let { row: nRow, column: nColumn } = neighbor;
+            let neighborStates = grid[nRow][nColumn];
 
             if (neighborStates.length > 1) {
-              let newStates = neighborStates.filter((state) => isValidState(nx, ny, state, grid));
+              let newStates = neighborStates.filter((state) => isValidState(nRow, nColumn, state, grid));
 
               if (newStates.length === 1) {
-                grid[nx][ny] = newStates;
+                grid[nRow][nColumn] = newStates;
               } else if (newStates.length === 0) {
-                debugger;
                 console.log("Contradiction found, have to backtrack...");
               }
             }
@@ -144,15 +143,15 @@
         }
       }
 
-      function isValidState(x, y, state, grid) {
+      function isValidState(row, column, state, grid) {
         const gridCopy = copyGrid(grid);
         const gridSize = grid.length;
-        gridCopy[x][y] = [state];
+        gridCopy[row][column] = [state];
 
-        // Check all 2x2 grids including the cell (x, y)
-        for (let dx = -1; dx <= 0; dx++) {
-          for (let dy = -1; dy <= 0; dy++) {
-            if (!is2x2Valid(dx + x, dy + y, gridSize)) {
+        // Check all 2x2 grids including the cell (row, column)
+        for (let dRow = -1; dRow <= 0; dRow++) {
+          for (let dColumn = -1; dColumn <= 0; dColumn++) {
+            if (!is2x2Valid(dRow + row, dColumn + column, gridSize)) {
               return false;
             }
           }
@@ -160,14 +159,14 @@
         return true;
       }
 
-      function is2x2Valid(topLeftX, topLeftY, gridSize) {
+      function is2x2Valid(topLeftRow, topLeftColumn, gridSize) {
         let result = true;
 
-        if (!(topLeftX < 0 || topLeftY < 0 || topLeftX >= gridSize - 1 || topLeftX >= gridSize - 1)) {
-          const color1 = grid[topLeftX][topLeftY];
-          const color2 = grid[topLeftX + 1][topLeftY];
-          const color3 = grid[topLeftX][topLeftY + 1];
-          const color4 = grid[topLeftX + 1][topLeftY + 1];
+        if (!(topLeftRow < 0 || topLeftColumn < 0 || topLeftRow >= gridSize - 1 || topLeftColumn >= gridSize - 1)) {
+          const color1 = grid[topLeftRow][topLeftColumn];
+          const color2 = grid[topLeftRow + 1][topLeftColumn];
+          const color3 = grid[topLeftRow][topLeftColumn + 1];
+          const color4 = grid[topLeftRow + 1][topLeftColumn + 1];
           const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
           const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
 
@@ -177,15 +176,15 @@
         return result;
       }
 
-      function getNeighbors(x, y, gridSize) {
+      function getNeighbors(row, column, gridSize) {
         let neighbors = [];
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            if (dx === 0 && dy === 0) continue; // Skip the cell itself
-            let nx = x + dx;
-            let ny = y + dy;
-            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
-              neighbors.push({ x: nx, y: ny });
+        for (let dRow = -1; dRow <= 1; dRow++) {
+          for (let dColumn = -1; dColumn <= 1; dColumn++) {
+            if (dRow === 0 && dColumn === 0) continue; // Skip the cell itself
+            let nRow = row + dRow;
+            let nColumn = column + dColumn;
+            if (nRow >= 0 && nRow < gridSize && nColumn >= 0 && nColumn < gridSize) {
+              neighbors.push({ row: nRow, column: nColumn });
             }
           }
         }
@@ -197,9 +196,9 @@
       }
 
       function detectContradiction(grid) {
-        for (let x = 0; x < gridSize; x++) {
-          for (let y = 0; y < gridSize; y++) {
-            if (grid[x][y].length === 0) {
+        for (let row = 0; row < gridSize; row++) {
+          for (let column = 0; column < gridSize; column++) {
+            if (grid[row][column].length === 0) {
               return true; // Found a contradiction
             }
           }
@@ -231,11 +230,11 @@
             let cell = selectCellToCollapse(grid);
             if (cell) {
               collapseCell(grid, cell); // Using the updated function
-              propagateConstraints(grid, cell.x, cell.y);
+              propagateConstraints(grid, cell.row, cell.column);
               decisionStack.push({
                 gridSnapshot: copyGrid(grid) // Snapshot of the grid at this decision
               });
-              action = "Collapsed cell at (" + cell.x + ", " + cell.y + ")";
+              action = "Collapsed cell at (" + cell.row + ", " + cell.column + ")";
             }
           }
         } else {
@@ -251,5 +250,5 @@
         document.getElementById("actionText").innerText = actionText;
       }
     </script>
-  </body>
+  </bodColumn>
 </html>
