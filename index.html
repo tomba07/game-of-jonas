@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(50, 10px);
+        grid-template-columns: repeat(10, 10px);
       }
       .grid-item {
         width: 10px;
@@ -30,7 +30,7 @@
       const gridContainer = document.getElementById("gridContainer");
 
       // Grid dimensions
-      const gridSize = 50;
+      const gridSize = 10;
       const maxRetries = 30;
 
       // Possible states
@@ -144,7 +144,6 @@
                 console.log(`neighbor at ${nRow}:${nColumn} now has an issue!`)
               }
             }else {
-              console.log(`neighbor at ${nRow}:${nColumn} already set to ${neighborStates[0]}`)
             }
           });
         }
