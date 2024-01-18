@@ -21,8 +21,6 @@
     </style>
   </head>
   <bodColumn>
-    <button id="collapseButton">Collapse Next Cell</button>
-    <button id="revertButton">Revert</button>
     <button id="playButton">Play</button>
     <div class="grid-container" id="gridContainer"></div>
 
@@ -35,10 +33,9 @@
       let decisionStack = []; // Global decision stack
       let intervalId = null; // Variable to store the interval ID
 
-      document.getElementById("collapseButton").addEventListener("click", performWaveFunctionCollapseStep);
-      document.getElementById("revertButton").addEventListener("click", backTrackDecision);
       document.getElementById("playButton").addEventListener("click", function () {
         if (intervalId === null) {
+          grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
           this.textContent = "Pause";
           intervalId = setInterval(function () {
             if (!isGridFullyCollapsed(grid)) {
@@ -240,6 +237,8 @@
           }else {
             //TODO: This has to be fixed properly. Surrender is not an option ;)
             clearInterval(intervalId);
+            intervalId = null;
+            document.getElementById("playButton").textContent = "Play";
           }
         }
 
