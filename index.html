@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(10, 10px);
+        grid-template-columns: repeat(30, 10px);
       }
       .grid-item {
         width: 10px;
@@ -21,54 +21,46 @@
     </style>
   </head>
   <bodColumn>
-    <p id="actionText">Press the button to start collapsing cells.</p>
     <button id="collapseButton">Collapse Next Cell</button>
+    <button id="revertButton">Revert</button>
     <button id="playButton">Play</button>
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
       const gridContainer = document.getElementById("gridContainer");
-
-      // Grid dimensions
-      const gridSize = 10;
-      const maxRetries = 30;
-
-      // Possible states
+      const gridSize = 30;
       const states = ["black", "white"];
-      // Initialize grid
+
       let grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+      let decisionStack = []; // Global decision stack
       let intervalId = null; // Variable to store the interval ID
 
       document.getElementById("collapseButton").addEventListener("click", performWaveFunctionCollapseStep);
+      document.getElementById("revertButton").addEventListener("click", backTrackDecision);
       document.getElementById("playButton").addEventListener("click", function () {
         if (intervalId === null) {
-          // Start automatic stepping
-          this.textContent = "Pause"; // Change button text to 'Pause'
+          this.textContent = "Pause";
           intervalId = setInterval(function () {
             if (!isGridFullyCollapsed(grid)) {
               performWaveFunctionCollapseStep();
             } else {
-              clearInterval(intervalId); // Stop the interval when done
+              clearInterval(intervalId);
               intervalId = null;
-              document.getElementById("playButton").textContent = "Play"; // Change button text back to 'Play'
+              document.getElementById("playButton").textContent = "Play";
             }
-          }, 1); // Execute a step every 0.5 seconds
+          }, 1);
         } else {
-          // Stop automatic stepping
           clearInterval(intervalId);
           intervalId = null;
-          this.textContent = "Play"; // Change button text back to 'Play'
+          this.textContent = "Play"; 
         }
       });
 
       //render initial grid
       displayGrid(grid);
 
-      // Function to display the grid
       function displayGrid(grid) {
-        // Clear existing grid
         gridContainer.innerHTML = "";
-        // Create and display cells
         grid.forEach((row, rowIndex) => {
           row.forEach((cellState, columnIndex) => {
             const cell = document.createElement("div");
@@ -76,10 +68,8 @@
             if (cellState.length === 1) {
               cell.classList.add(cellState[0]);
             } else {
-              // Add 'uncollapsed' class for cells in superposition
               cell.classList.add("uncollapsed");
             }
-            // Add click event listener to log the possible states of the cell
             cell.addEventListener("click", () => {
               console.log(`Possible states for cell (${rowIndex}, ${columnIndex}): `, grid[rowIndex][columnIndex]);
             });
@@ -126,8 +116,6 @@
           let neighbors = getNeighbors(row, column, gridSize);
           let collapsedState = grid[row][column][0];
 
-          console.log(`propagating constraints for ${row}:${column} which is now ${grid[row][column][0]}`);
-
           neighbors.forEach((neighbor) => {
             let { row: nRow, column: nColumn } = neighbor;
             let neighborStates = grid[nRow][nColumn];
@@ -137,16 +125,23 @@
 
               if (newStates.length === 1) {
                 grid[nRow][nColumn] = newStates;
-                toProcess.push({row: nRow, column: nColumn});
-                console.log(`neighbor at ${nRow}:${nColumn} now has collapsed to: ${neighborStates[0]}`)
-                
+                toProcess.push({ row: nRow, column: nColumn });
+                displayGrid(grid);
               } else if (newStates.length === 0) {
-                console.log(`neighbor at ${nRow}:${nColumn} now has an issue!`)
+                grid[nRow][nColumn] = newStates;
+                grid = backTrackUntilFixed(nRow, nColumn, grid);
               }
-            }else {
             }
           });
         }
+      }
+
+      function backTrackUntilFixed(row, column, grid) {
+        while (grid[row][column].length === 0) {
+          grid = backTrackDecision();
+        }
+
+        return grid
       }
 
       function isValidState(row, column, state, grid) {
@@ -210,59 +205,45 @@
         return grid.every((row) => row.every((cell) => cell.length === 1));
       }
 
-      function detectContradiction(grid) {
-        for (let row = 0; row < gridSize; row++) {
-          for (let column = 0; column < gridSize; column++) {
-            if (grid[row][column].length === 0) {
-              return true; // Found a contradiction
-            }
-          }
-        }
-        return false; // No contradiction found
-      }
-
       function copyGrid(grid) {
         return grid.map((row) => row.map((cell) => [...cell]));
       }
 
-      let decisionStack = []; // Global decision stack
-      let actionText = ""; // Text describing the last action
+      function backTrackDecision() {
+        const revertedDecision = decisionStack.pop();
+        const revertedRow = revertedDecision.cell.row;
+        const revertedColumn = revertedDecision.cell.column;
+        const lastDecision = decisionStack[decisionStack.length - 1];
 
-      function performWaveFunctionCollapseStep() {
-        let action = "";
-
-        if (!isGridFullyCollapsed(grid)) {
-          if (detectContradiction(grid)) {
-            let lastDecision = decisionStack[decisionStack.length - 1];
-            action = `Backtracking at cell (${lastDecision.x}, ${lastDecision.y}), Retry count: ${lastDecision.retryCount}`;
-            decisionStack.pop();
-            if (decisionStack.length > 0) {
-              grid = decisionStack[decisionStack.length - 1].gridSnapshot;
-            } else {
-              action = "No more moves to backtrack. Grid is stuck.";
-            }
-          } else {
-            let cell = selectCellToCollapse(grid);
-            if (cell) {
-              collapseCell(grid, cell); // Using the updated function
-              propagateConstraints(grid, cell.row, cell.column);
-              decisionStack.push({
-                gridSnapshot: copyGrid(grid) // Snapshot of the grid at this decision
-              });
-              action = "Collapsed cell at (" + cell.row + ", " + cell.column + ")";
-            }
-          }
+        if (lastDecision) {
+          grid = lastDecision.gridSnapshot;
         } else {
-          action = "Grid fully collapsed!";
+          grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
         }
 
-        displayGrid(grid); // Update the grid display after each step
-        updateActionText(action); // Update the action text
+        displayGrid(grid);
+
+        return grid;
       }
 
-      function updateActionText(text) {
-        actionText = text;
-        document.getElementById("actionText").innerText = actionText;
+      function performWaveFunctionCollapseStep() {
+        if (!isGridFullyCollapsed(grid)) {
+          let cell = selectCellToCollapse(grid);
+
+          if (cell) {
+            collapseCell(grid, cell);
+            propagateConstraints(grid, cell.row, cell.column);
+            decisionStack.push({
+              gridSnapshot: copyGrid(grid),
+              cell: cell
+            });
+          }else {
+            //TODO: This has to be fixed properly. Surrender is not an option ;)
+            clearInterval(intervalId);
+          }
+        }
+
+        displayGrid(grid);
       }
     </script>
   </bodColumn>
