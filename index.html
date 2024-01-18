@@ -121,6 +121,7 @@
       function propagateConstraints(grid, row, column) {
         let toProcess = [{ row, column }];
 
+        console.log(`propagating constraints for ${row}:${column} which is now ${grid[row][column][0]}`);
         while (toProcess.length > 0) {
           let { row, column } = toProcess.shift();
           let neighbors = getNeighbors(row, column, gridSize);
@@ -134,10 +135,13 @@
               let newStates = neighborStates.filter((state) => isValidState(nRow, nColumn, state, grid));
 
               if (newStates.length === 1) {
+                console.log(`neighbor at ${nRow}:${nColumn} now has collapsed to: ${neighborStates[0]}`)
                 grid[nRow][nColumn] = newStates;
               } else if (newStates.length === 0) {
-                console.log("Contradiction found, have to backtrack...");
+                console.log(`neighbor at ${nRow}:${nColumn} now has an issue!`)
               }
+            }else {
+              console.log(`neighbor at ${nRow}:${nColumn} already set to ${neighborStates[0]}`)
             }
           });
         }
@@ -151,7 +155,7 @@
         // Check all 2x2 grids including the cell (row, column)
         for (let dRow = -1; dRow <= 0; dRow++) {
           for (let dColumn = -1; dColumn <= 0; dColumn++) {
-            if (!is2x2Valid(dRow + row, dColumn + column, gridSize)) {
+            if (!is2x2Valid(dRow + row, dColumn + column, gridCopy)) {
               return false;
             }
           }
@@ -159,14 +163,15 @@
         return true;
       }
 
-      function is2x2Valid(topLeftRow, topLeftColumn, gridSize) {
+      function is2x2Valid(topLeftRow, topLeftColumn, gridCopy) {
+        const gridSize = gridCopy.length;
         let result = true;
 
         if (!(topLeftRow < 0 || topLeftColumn < 0 || topLeftRow >= gridSize - 1 || topLeftColumn >= gridSize - 1)) {
-          const color1 = grid[topLeftRow][topLeftColumn];
-          const color2 = grid[topLeftRow + 1][topLeftColumn];
-          const color3 = grid[topLeftRow][topLeftColumn + 1];
-          const color4 = grid[topLeftRow + 1][topLeftColumn + 1];
+          const color1 = gridCopy[topLeftRow][topLeftColumn];
+          const color2 = gridCopy[topLeftRow + 1][topLeftColumn];
+          const color3 = gridCopy[topLeftRow][topLeftColumn + 1];
+          const color4 = gridCopy[topLeftRow + 1][topLeftColumn + 1];
           const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
           const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
 
