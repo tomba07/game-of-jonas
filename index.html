@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(5, 10px);
+        grid-template-columns: repeat(50, 10px);
       }
       .grid-item {
         width: 10px;
@@ -30,7 +30,7 @@
       const gridContainer = document.getElementById("gridContainer");
 
       // Grid dimensions
-      const gridSize = 5;
+      const gridSize = 50;
       const maxRetries = 30;
 
       // Possible states
@@ -121,11 +121,12 @@
       function propagateConstraints(grid, row, column) {
         let toProcess = [{ row, column }];
 
-        console.log(`propagating constraints for ${row}:${column} which is now ${grid[row][column][0]}`);
         while (toProcess.length > 0) {
           let { row, column } = toProcess.shift();
           let neighbors = getNeighbors(row, column, gridSize);
           let collapsedState = grid[row][column][0];
+
+          console.log(`propagating constraints for ${row}:${column} which is now ${grid[row][column][0]}`);
 
           neighbors.forEach((neighbor) => {
             let { row: nRow, column: nColumn } = neighbor;
@@ -135,8 +136,10 @@
               let newStates = neighborStates.filter((state) => isValidState(nRow, nColumn, state, grid));
 
               if (newStates.length === 1) {
-                console.log(`neighbor at ${nRow}:${nColumn} now has collapsed to: ${neighborStates[0]}`)
                 grid[nRow][nColumn] = newStates;
+                toProcess.push({row: nRow, column: nColumn});
+                console.log(`neighbor at ${nRow}:${nColumn} now has collapsed to: ${neighborStates[0]}`)
+                
               } else if (newStates.length === 0) {
                 console.log(`neighbor at ${nRow}:${nColumn} now has an issue!`)
               }
@@ -168,14 +171,22 @@
         let result = true;
 
         if (!(topLeftRow < 0 || topLeftColumn < 0 || topLeftRow >= gridSize - 1 || topLeftColumn >= gridSize - 1)) {
-          const color1 = gridCopy[topLeftRow][topLeftColumn];
-          const color2 = gridCopy[topLeftRow + 1][topLeftColumn];
-          const color3 = gridCopy[topLeftRow][topLeftColumn + 1];
-          const color4 = gridCopy[topLeftRow + 1][topLeftColumn + 1];
-          const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
-          const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
+          const cell1 = gridCopy[topLeftRow][topLeftColumn];
+          const cell2 = gridCopy[topLeftRow + 1][topLeftColumn];
+          const cell3 = gridCopy[topLeftRow][topLeftColumn + 1];
+          const cell4 = gridCopy[topLeftRow + 1][topLeftColumn + 1];
+          const allCollapsed = cell1.length === 1 && cell2.length === 1 && cell3.length === 1 && cell4.length === 1;
 
-          result = !allColorsSame && !checkeredPattern;
+          if (allCollapsed) {
+            const color1 = cell1[0];
+            const color2 = cell2[0];
+            const color3 = cell3[0];
+            const color4 = cell4[0];
+            const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
+            const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
+
+            result = !allColorsSame && !checkeredPattern;
+          }
         }
 
         return result;
