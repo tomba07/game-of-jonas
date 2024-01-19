@@ -241,28 +241,42 @@
       }
 
       function backTrackDecision() {
-        while (true) {
-          const revertedDecision = decisionStack.pop();
-          const lastDecision = decisionStack[decisionStack.length - 1];
+        const revertedDecision = decisionStack.pop();
+        const lastDecision = decisionStack[decisionStack.length - 1];
 
-          if (!lastDecision) {
-            // If there are no previous decisions, reset the grid and index
+        if (!lastDecision) {
+          // If there are no previous decisions, reset the grid and index
+          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+          currentIndex = -1;
+          stateOccurrences.clear();
+          return;
+        } else {
+          const hash = getGridHash(lastDecision.gridSnapshot);
+          const count = (stateOccurrences.get(hash) || 0) + 1;
+          stateOccurrences.set(hash, count);
+
+          currentIndex--;
+          window.grid = lastDecision.gridSnapshot;
+
+          if (count > Math.sqrt(getUncollapsedFields() / 2)) {
             window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
             currentIndex = -1;
             stateOccurrences.clear();
             return;
           }
+        }
+      }
 
-          const hash = getGridHash(lastDecision.gridSnapshot);
-          const count = (stateOccurrences.get(hash) || 0) + 1;
-          stateOccurrences.set(hash, count);
-
-          if (count < 3) {
-            currentIndex--;
-            window.grid = lastDecision.gridSnapshot;
-            return;
+      function getUncollapsedFields() {
+        let uncollapsedCells = 0;
+        for (let row = 0; row < gridSize; row++) {
+          for (let column = 0; column < gridSize; column++) {
+            if (window.grid[row][column].length > 1) {
+              uncollapsedCells++;
+            }
           }
         }
+        return uncollapsedCells;
       }
 
       function gridBreaksRules() {
