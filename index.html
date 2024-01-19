@@ -22,69 +22,22 @@
   </head>
   <bodColumn>
     <button id="playButton">Play</button>
-    <button id="undoButton">Undo</button>
-    <button id="redoButton">Redo</button>
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
       const gridContainer = document.getElementById("gridContainer");
       const gridSize = 15;
+      const maxAttempts = gridSize * gridSize * 2;
       const states = ["black", "white"];
-      let stateOccurrences = new Map();
 
       window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+      window.attempts = 0;
       let decisionStack = []; // Global decision stack
-      let intervalId = null; // Variable to store the interval ID
       let currentIndex = -1; // Points to the current decision
 
       document.getElementById("playButton").addEventListener("click", function () {
-        if (intervalId === null) {
-          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-          this.textContent = "Pause";
-          intervalId = setInterval(function () {
-            if (!isGridFullyCollapsed()) {
-              performWaveFunctionCollapseStep();
-            } else {
-              clearInterval(intervalId);
-              intervalId = null;
-              document.getElementById("playButton").textContent = "Play";
-            }
-          }, 1);
-        } else {
-          clearInterval(intervalId);
-          intervalId = null;
-          this.textContent = "Play";
-        }
+        performWaveFunctionCollapseStep();
       });
-      window.addEventListener("keydown", function (event) {
-        switch (event.key) {
-          case "ArrowLeft": // Left arrow key for undo
-            undoAction();
-            break;
-          case "ArrowRight": // Right arrow key for redo
-            redoAction();
-            break;
-        }
-      });
-
-      function undoAction() {
-        if (currentIndex > 0) {
-          currentIndex--;
-          window.grid = decisionStack[currentIndex].gridSnapshot;
-          displayGrid();
-        }
-      }
-
-      function redoAction() {
-        if (currentIndex < decisionStack.length - 1) {
-          currentIndex++;
-          window.grid = decisionStack[currentIndex].gridSnapshot;
-          displayGrid();
-        }
-      }
-
-      document.getElementById("undoButton").addEventListener("click", undoAction);
-      document.getElementById("redoButton").addEventListener("click", redoAction);
 
       //render initial grid
       displayGrid();
@@ -248,35 +201,17 @@
           // If there are no previous decisions, reset the grid and index
           window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
           currentIndex = -1;
-          stateOccurrences.clear();
           return;
         } else {
-          const hash = getGridHash(lastDecision.gridSnapshot);
-          const count = (stateOccurrences.get(hash) || 0) + 1;
-          stateOccurrences.set(hash, count);
-
           currentIndex--;
           window.grid = lastDecision.gridSnapshot;
-
-          if (count > Math.sqrt(getUncollapsedFields() / 2)) {
-            window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-            currentIndex = -1;
-            stateOccurrences.clear();
-            return;
-          }
         }
       }
 
-      function getUncollapsedFields() {
-        let uncollapsedCells = 0;
-        for (let row = 0; row < gridSize; row++) {
-          for (let column = 0; column < gridSize; column++) {
-            if (window.grid[row][column].length > 1) {
-              uncollapsedCells++;
-            }
-          }
-        }
-        return uncollapsedCells;
+      function resetGrid() {
+        window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+        currentIndex = -1;
+        window.attempts = 0;
       }
 
       function gridBreaksRules() {
@@ -292,24 +227,22 @@
         return result;
       }
 
-      function getGridHash(grid) {
-        return grid.map((row) => row.map((cell) => cell.join("")).join("")).join("|");
-      }
-
       function performWaveFunctionCollapseStep() {
+        window.attempts++;
+        if (window.attempts > maxAttempts) {
+          resetGrid();
+        }
+        console.log(`${window.attempts} of ${maxAttempts}`)
         if (!isGridFullyCollapsed()) {
           const chosenState = collapseCell(selectCellToCollapse());
           propagateConstraints();
 
-          const newHash = getGridHash(window.grid);
-          stateOccurrences = new Map([...stateOccurrences].filter(([hash, count]) => count <= currentIndex));
-          stateOccurrences.set(newHash, 1);
           decisionStack.push({
             gridSnapshot: copyGrid()
           });
           currentIndex++;
+          setTimeout(() => performWaveFunctionCollapseStep(), 1);
         }
-
         displayGrid();
       }
     </script>
