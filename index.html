@@ -30,6 +30,7 @@
       const gridContainer = document.getElementById("gridContainer");
       const gridSize = 15;
       const states = ["black", "white"];
+      let stateOccurrences = new Map();
 
       window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
       let decisionStack = []; // Global decision stack
@@ -243,16 +244,27 @@
       }
 
       function backTrackDecision() {
-        const revertedDecision = decisionStack.pop();
-        const lastDecision = decisionStack[decisionStack.length - 1];
+        while (true) {
+          const revertedDecision = decisionStack.pop();
+          const lastDecision = decisionStack[decisionStack.length - 1];
 
-        if (lastDecision) {
-          currentIndex--;
-          window.grid = lastDecision.gridSnapshot;
-        } else {
-          // If there are no previous decisions, reset the grid and index
-          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-          currentIndex = -1;
+          if (!lastDecision) {
+            // If there are no previous decisions, reset the grid and index
+            window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+            currentIndex = -1;
+            stateOccurrences.clear();
+            return;
+          }
+
+          const hash = getGridHash(lastDecision.gridSnapshot);
+          const count = (stateOccurrences.get(hash) || 0) + 1;
+          stateOccurrences.set(hash, count);
+
+          if (count < 3) {
+            currentIndex--;
+            window.grid = lastDecision.gridSnapshot;
+            return;
+          }
         }
       }
 
@@ -261,20 +273,16 @@
         window.grid.forEach((row, rowIndex) => {
           row.forEach((cell, columnIndex) => {
             if (cell.length === 0) {
-              console.log(`${rowIndex}:${columnIndex} has 0 options!`);
               result = true;
-              cell.invalid = true; // Mark cell as invalid
-            } else if (cell.length === 1 && !isValidState(rowIndex, columnIndex, cell[0])) {
-              console.log(`${rowIndex}:${columnIndex} breaks rules!`);
-              result = true;
-              cell.invalid = true; // Mark cell as invalid
-            } else {
-              delete cell.invalid; // Remove invalid mark if it exists
             }
           });
         });
 
         return result;
+      }
+
+      function getGridHash(grid) {
+        return grid.map((row) => row.map((cell) => cell.join("")).join("")).join("|");
       }
 
       function performWaveFunctionCollapseStep() {
@@ -284,6 +292,10 @@
           if (cell) {
             const chosenState = collapseCell(cell);
             propagateConstraints(cell.row, cell.column);
+
+            const newHash = getGridHash(window.grid);
+            stateOccurrences = new Map([...stateOccurrences].filter(([hash, count]) => count <= currentIndex));
+            stateOccurrences.set(newHash, 1);
             decisionStack.push({
               gridSnapshot: copyGrid(),
               cell: cell,
