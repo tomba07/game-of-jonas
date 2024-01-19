@@ -22,6 +22,8 @@
   </head>
   <bodColumn>
     <button id="playButton">Play</button>
+    <button id="undoButton">Undo</button>
+    <button id="redoButton">Redo</button>
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
@@ -29,16 +31,17 @@
       const gridSize = 30;
       const states = ["black", "white"];
 
-      let grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+      window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
       let decisionStack = []; // Global decision stack
       let intervalId = null; // Variable to store the interval ID
+      let currentIndex = -1; // Points to the current decision
 
       document.getElementById("playButton").addEventListener("click", function () {
         if (intervalId === null) {
-          grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
           this.textContent = "Pause";
           intervalId = setInterval(function () {
-            if (!isGridFullyCollapsed(grid)) {
+            if (!isGridFullyCollapsed(window.grid)) {
               performWaveFunctionCollapseStep();
             } else {
               clearInterval(intervalId);
@@ -49,16 +52,32 @@
         } else {
           clearInterval(intervalId);
           intervalId = null;
-          this.textContent = "Play"; 
+          this.textContent = "Play";
+        }
+      });
+
+      document.getElementById("undoButton").addEventListener("click", function () {
+        if (currentIndex > 0) {
+          currentIndex--;
+          window.grid = decisionStack[currentIndex].gridSnapshot;
+          displayGrid(window.grid);
+        }
+      });
+
+      document.getElementById("redoButton").addEventListener("click", function () {
+        if (currentIndex < decisionStack.length - 1) {
+          currentIndex++;
+          window.grid = decisionStack[currentIndex].gridSnapshot;
+          displayGrid(window.grid);
         }
       });
 
       //render initial grid
-      displayGrid(grid);
+      displayGrid(window.grid);
 
       function displayGrid(grid) {
         gridContainer.innerHTML = "";
-        grid.forEach((row, rowIndex) => {
+        window.grid.forEach((row, rowIndex) => {
           row.forEach((cellState, columnIndex) => {
             const cell = document.createElement("div");
             cell.className = "grid-item";
@@ -68,7 +87,7 @@
               cell.classList.add("uncollapsed");
             }
             cell.addEventListener("click", () => {
-              console.log(`Possible states for cell (${rowIndex}, ${columnIndex}): `, grid[rowIndex][columnIndex]);
+              console.log(`Possible states for cell (${rowIndex}, ${columnIndex}): `, window.grid[rowIndex][columnIndex]);
             });
             gridContainer.appendChild(cell);
           });
@@ -80,7 +99,7 @@
 
         for (let row = 0; row < gridSize; row++) {
           for (let column = 0; column < gridSize; column++) {
-            const options = grid[row][column];
+            const options = window.grid[row][column];
 
             if (options.length > 1) {
               pendingCells.push({ row, column });
@@ -98,52 +117,65 @@
 
       function collapseCell(grid, cell) {
         let { row, column } = cell;
-        let cellStates = grid[row][column];
+        let cellStates = window.grid[row][column];
+        let collapsedState = null;
+
         if (cellStates.length > 1) {
-          let collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
-          grid[row][column] = [collapsedState];
+          collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
+          window.grid[row][column] = [collapsedState];
         }
+
+        return collapsedState;
+      }
+
+      function collapseCellToState(grid, cell, state) {
+        let { row, column } = cell;
+        window.grid[row][column] = [state];
       }
 
       function propagateConstraints(grid, row, column) {
         let toProcess = [{ row, column }];
+        let backOff = 1;
 
         while (toProcess.length > 0) {
           let { row, column } = toProcess.shift();
           let neighbors = getNeighbors(row, column, gridSize);
-          let collapsedState = grid[row][column][0];
+          let collapsedState = window.grid[row][column][0];
 
           neighbors.forEach((neighbor) => {
             let { row: nRow, column: nColumn } = neighbor;
-            let neighborStates = grid[nRow][nColumn];
+            let neighborStates = window.grid[nRow][nColumn];
 
             if (neighborStates.length > 1) {
               let newStates = neighborStates.filter((state) => isValidState(nRow, nColumn, state, grid));
 
               if (newStates.length === 1) {
-                grid[nRow][nColumn] = newStates;
+                window.grid[nRow][nColumn] = newStates;
                 toProcess.push({ row: nRow, column: nColumn });
-                displayGrid(grid);
+                displayGrid(window.grid);
               } else if (newStates.length === 0) {
-                grid[nRow][nColumn] = newStates;
-                grid = backTrackUntilFixed(nRow, nColumn, grid);
+                window.grid[nRow][nColumn] = newStates;
+                window.grid = backTrackUntilFixed(nRow, nColumn, window.grid, backOff * 2);
               }
             }
           });
         }
+
+        return window.grid;
       }
 
-      function backTrackUntilFixed(row, column, grid) {
-        while (grid[row][column].length === 0) {
-          grid = backTrackDecision();
+      function backTrackUntilFixed(row, column, grid, backOff) {
+        while (window.grid[row][column].length === 0 || backOff > 0) {
+          backOff--;
+          window.grid = backTrackDecision();
         }
 
-        return grid
+        return window.grid;
       }
 
       function isValidState(row, column, state, grid) {
-        const gridCopy = copyGrid(grid);
-        const gridSize = grid.length;
+        const gridCopy = copyGrid(window.grid);
+        const gridSize = window.grid.length;
         gridCopy[row][column] = [state];
 
         // Check all 2x2 grids including the cell (row, column)
@@ -199,42 +231,43 @@
       }
 
       function isGridFullyCollapsed(grid) {
-        return grid.every((row) => row.every((cell) => cell.length === 1));
+        return window.grid.every((row) => row.every((cell) => cell.length === 1));
       }
 
       function copyGrid(grid) {
-        return grid.map((row) => row.map((cell) => [...cell]));
+        return window.grid.map((row) => row.map((cell) => [...cell]));
       }
 
       function backTrackDecision() {
         const revertedDecision = decisionStack.pop();
-        const revertedRow = revertedDecision.cell.row;
-        const revertedColumn = revertedDecision.cell.column;
         const lastDecision = decisionStack[decisionStack.length - 1];
 
         if (lastDecision) {
-          grid = lastDecision.gridSnapshot;
+          currentIndex--;
+          window.grid = lastDecision.gridSnapshot;
         } else {
-          grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+          // If there are no previous decisions, reset the grid and index
+          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+          currentIndex = -1;
         }
-
-        displayGrid(grid);
 
         return grid;
       }
 
       function performWaveFunctionCollapseStep() {
-        if (!isGridFullyCollapsed(grid)) {
-          let cell = selectCellToCollapse(grid);
+        if (!isGridFullyCollapsed(window.grid)) {
+          let cell = selectCellToCollapse(window.grid);
 
           if (cell) {
-            collapseCell(grid, cell);
-            propagateConstraints(grid, cell.row, cell.column);
+            const chosenState = collapseCell(grid, cell);
+            window.grid = propagateConstraints(window.grid, cell.row, cell.column);
             decisionStack.push({
-              gridSnapshot: copyGrid(grid),
-              cell: cell
+              gridSnapshot: copyGrid(window.grid),
+              cell: cell,
+              state: chosenState
             });
-          }else {
+            currentIndex++;
+          } else {
             //TODO: This has to be fixed properly. Surrender is not an option ;)
             clearInterval(intervalId);
             intervalId = null;
@@ -242,7 +275,7 @@
           }
         }
 
-        displayGrid(grid);
+        displayGrid(window.grid);
       }
     </script>
   </bodColumn>
