@@ -38,6 +38,7 @@
       let currentIndex = -1; // Points to the current decision
       let lastCollapsedCell = null;
       let isSimulationRunning = false;
+      let isProcessing = false;
 
       document.getElementById("playButton").addEventListener("click", function () {
         isSimulationRunning = true;
@@ -245,9 +246,11 @@
       }
 
       function performWaveFunctionCollapseStep() {
-        if (!isSimulationRunning) {
-          return; // Stop the simulation if the flag is false
+        if (!isSimulationRunning || isProcessing) {
+          return;
         }
+        isProcessing = true;
+
         window.attempts++;
         if (window.attempts > maxAttempts) {
           resetGrid();
@@ -262,7 +265,10 @@
             column: cell.column
           });
           currentIndex++;
-          setTimeout(() => performWaveFunctionCollapseStep(), 1);
+          isProcessing = false;
+          if (isSimulationRunning) {
+            setTimeout(() => performWaveFunctionCollapseStep(), 1);
+          }
         }
         displayGrid();
       }
