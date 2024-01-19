@@ -22,6 +22,8 @@
   </head>
   <bodColumn>
     <button id="playButton">Play</button>
+    <button id="stopButton">Stop</button>
+
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
@@ -35,13 +37,23 @@
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
       let lastCollapsedCell = null;
+      let isSimulationRunning = false;
 
       document.getElementById("playButton").addEventListener("click", function () {
+        isSimulationRunning = true;
         performWaveFunctionCollapseStep();
+      });
+      document.getElementById("stopButton").addEventListener("click", function () {
+        isSimulationRunning = false;
       });
 
       //render initial grid
       displayGrid();
+
+      function updateUI() {
+        document.getElementById("playButton").disabled = isSimulationRunning;
+        document.getElementById("stopButton").disabled = !isSimulationRunning;
+      }
 
       function displayGrid() {
         gridContainer.innerHTML = "";
@@ -54,12 +66,6 @@
             } else {
               cell.classList.add("uncollapsed");
             }
-            cell.addEventListener("click", () => {
-              console.log(
-                `Possible states for cell (${rowIndex}, ${columnIndex}): `,
-                window.grid[rowIndex][columnIndex]
-              );
-            });
             gridContainer.appendChild(cell);
           });
         });
@@ -239,11 +245,13 @@
       }
 
       function performWaveFunctionCollapseStep() {
+        if (!isSimulationRunning) {
+          return; // Stop the simulation if the flag is false
+        }
         window.attempts++;
         if (window.attempts > maxAttempts) {
           resetGrid();
         }
-        console.log(`${window.attempts} of ${maxAttempts}`);
         if (!isGridFullyCollapsed()) {
           const cell = selectCellToCollapse();
           const chosenState = collapseCell(selectCellToCollapse());
