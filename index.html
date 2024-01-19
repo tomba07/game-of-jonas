@@ -161,9 +161,6 @@
 
                 if (newStates.length === 0) {
                   backTrackUntilFixed();
-                  if (gridBreaksRules()) {
-                    debugger;
-                  }
                   return;
                 }
               }
@@ -287,27 +284,16 @@
 
       function performWaveFunctionCollapseStep() {
         if (!isGridFullyCollapsed()) {
-          let cell = selectCellToCollapse();
+          const chosenState = collapseCell(selectCellToCollapse());
+          propagateConstraints();
 
-          if (cell) {
-            const chosenState = collapseCell(cell);
-            propagateConstraints(cell.row, cell.column);
-
-            const newHash = getGridHash(window.grid);
-            stateOccurrences = new Map([...stateOccurrences].filter(([hash, count]) => count <= currentIndex));
-            stateOccurrences.set(newHash, 1);
-            decisionStack.push({
-              gridSnapshot: copyGrid(),
-              cell: cell,
-              state: chosenState
-            });
-            currentIndex++;
-          } else {
-            //TODO: This has to be fixed properly. Surrender is not an option ;)
-            clearInterval(intervalId);
-            intervalId = null;
-            document.getElementById("playButton").textContent = "Play";
-          }
+          const newHash = getGridHash(window.grid);
+          stateOccurrences = new Map([...stateOccurrences].filter(([hash, count]) => count <= currentIndex));
+          stateOccurrences.set(newHash, 1);
+          decisionStack.push({
+            gridSnapshot: copyGrid()
+          });
+          currentIndex++;
         }
 
         displayGrid();
