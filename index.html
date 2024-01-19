@@ -34,6 +34,7 @@
       window.attempts = 0;
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
+      let lastCollapsedCell = null;
 
       document.getElementById("playButton").addEventListener("click", function () {
         performWaveFunctionCollapseStep();
@@ -65,22 +66,27 @@
       }
 
       function selectCellToCollapse() {
-        //IDEA: Pick cells next to collapsed cells and see if this increased chances of success!
-        let pendingCells = [];
+        let potentialCells = [];
 
-        for (let row = 0; row < gridSize; row++) {
-          for (let column = 0; column < gridSize; column++) {
-            const options = window.grid[row][column];
+        if (lastCollapsedCell) {
+          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, gridSize);
+          potentialCells = neighbors.filter((neighbor) => window.grid[neighbor.row][neighbor.column].length > 1);
+        }
 
-            if (options.length > 1) {
-              pendingCells.push({ row, column });
+        if (potentialCells.length === 0) {
+          // No available neighbors, fallback to selecting from any uncollapsed cells
+          for (let row = 0; row < gridSize; row++) {
+            for (let column = 0; column < gridSize; column++) {
+              if (window.grid[row][column].length > 1) {
+                potentialCells.push({ row, column });
+              }
             }
           }
         }
 
-        if (pendingCells.length > 0) {
-          const randomIndex = Math.floor(Math.random() * pendingCells.length);
-          return pendingCells[randomIndex];
+        if (potentialCells.length > 0) {
+          const randomIndex = Math.floor(Math.random() * potentialCells.length);
+          return potentialCells[randomIndex];
         }
 
         return null;
@@ -94,6 +100,7 @@
         if (cellStates.length > 1) {
           collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
           window.grid[row][column] = [collapsedState];
+          lastCollapsedCell = { row, column }; // Update lastCollapsedCell
         }
 
         return collapsedState;
@@ -213,6 +220,7 @@
         window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
         currentIndex = -1;
         window.attempts = 0;
+        lastCollapsedCell = null;
       }
 
       function gridBreaksRules() {
@@ -233,7 +241,7 @@
         if (window.attempts > maxAttempts) {
           resetGrid();
         }
-        console.log(`${window.attempts} of ${maxAttempts}`)
+        console.log(`${window.attempts} of ${maxAttempts}`);
         if (!isGridFullyCollapsed()) {
           const chosenState = collapseCell(selectCellToCollapse());
           propagateConstraints();
