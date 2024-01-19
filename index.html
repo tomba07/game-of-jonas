@@ -27,7 +27,7 @@
     <script>
       const gridContainer = document.getElementById("gridContainer");
       const gridSize = 15;
-      const maxAttempts = gridSize * gridSize * 2;
+      const maxAttempts = gridSize * gridSize * gridSize;
       const states = ["black", "white"];
 
       window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
@@ -211,8 +211,10 @@
           currentIndex = -1;
           return;
         } else {
+          const { row, column } = lastDecision;
+
           currentIndex--;
-          window.grid = lastDecision.gridSnapshot;
+          window.grid[row][column] = states;
         }
       }
 
@@ -243,11 +245,13 @@
         }
         console.log(`${window.attempts} of ${maxAttempts}`);
         if (!isGridFullyCollapsed()) {
+          const cell = selectCellToCollapse();
           const chosenState = collapseCell(selectCellToCollapse());
           propagateConstraints();
 
           decisionStack.push({
-            gridSnapshot: copyGrid()
+            row: cell.row,
+            column: cell.column
           });
           currentIndex++;
           setTimeout(() => performWaveFunctionCollapseStep(), 1);
