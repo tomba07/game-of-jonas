@@ -139,48 +139,40 @@
         if (cellStates.length > 1) {
           collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
           window.grid[row][column] = [collapsedState];
-          if (gridBreaksRules()) {
-            debugger;
-          }
         }
 
         return collapsedState;
       }
 
-      function propagateConstraints(row, column) {
-        let toProcess = [{ row, column }];
-        let backOff = 1;
+      function propagateConstraints() {
+        let changesMade = false;
+        do {
+          changesMade = false;
+          for (let row = 0; row < gridSize; row++) {
+            for (let column = 0; column < gridSize; column++) {
+              if (window.grid[row][column].length > 1) {
+                let newStates = window.grid[row][column].filter((state) => isValidState(row, column, state));
 
-        while (toProcess.length > 0) {
-          let { row, column } = toProcess.shift();
-          let neighbors = getNeighbors(row, column, gridSize);
-          let collapsedState = window.grid[row][column][0];
-
-          neighbors.forEach((neighbor) => {
-            let { row: nRow, column: nColumn } = neighbor;
-            let neighborStates = window.grid[nRow][nColumn];
-
-            if (neighborStates.length > 1) {
-              let newStates = neighborStates.filter((state) => isValidState(nRow, nColumn, state));
-
-              if (newStates.length === 1) {
-                window.grid[nRow][nColumn] = newStates;
-                if (gridBreaksRules()) {
-                  debugger;
+                if (newStates.length !== window.grid[row][column].length) {
+                  window.grid[row][column] = newStates;
+                  changesMade = true;
                 }
-                toProcess.push({ row: nRow, column: nColumn });
-                displayGrid(window.grid);
-              } else if (newStates.length === 0) {
-                backTrackUntilFixed(nRow, nColumn, backOff * 2);
+
+                if (newStates.length === 0) {
+                  backTrackUntilFixed();
+                  if (gridBreaksRules()) {
+                    debugger;
+                  }
+                  return;
+                }
               }
             }
-          });
-        }
+          }
+        } while (changesMade);
       }
 
-      function backTrackUntilFixed(row, column, backOff) {
-        while (window.grid[row][column].length === 0 || backOff > 0) {
-          backOff--;
+      function backTrackUntilFixed() {
+        while (gridBreaksRules()) {
           backTrackDecision();
         }
       }
@@ -266,19 +258,21 @@
 
       function gridBreaksRules() {
         let result = false;
-        window.grid.forEach((row, rowIndex) =>
+        window.grid.forEach((row, rowIndex) => {
           row.forEach((cell, columnIndex) => {
             if (cell.length === 0) {
               console.log(`${rowIndex}:${columnIndex} has 0 options!`);
               result = true;
-            } else if (cell.length === 1) {
-              if (!isValidState(rowIndex, columnIndex, cell[0], window.grid)) {
-                console.log(`${rowIndex}:${columnIndex} breaks rules!`);
-                result = true;
-              }
+              cell.invalid = true; // Mark cell as invalid
+            } else if (cell.length === 1 && !isValidState(rowIndex, columnIndex, cell[0])) {
+              console.log(`${rowIndex}:${columnIndex} breaks rules!`);
+              result = true;
+              cell.invalid = true; // Mark cell as invalid
+            } else {
+              delete cell.invalid; // Remove invalid mark if it exists
             }
-          })
-        );
+          });
+        });
 
         return result;
       }
