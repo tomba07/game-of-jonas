@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(30, 10px);
+        grid-template-columns: repeat(15, 10px);
       }
       .grid-item {
         width: 10px;
@@ -28,8 +28,9 @@
 
     <script>
       const gridContainer = document.getElementById("gridContainer");
-      const gridSize = 30;
+      const gridSize = 15;
       const states = ["black", "white"];
+      const maxAttempts = (gridSize * gridSize);
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
       let lastCollapsedCell = null;
@@ -54,6 +55,12 @@
       function updateUI() {
         document.getElementById("playButton").disabled = isSimulationRunning;
         document.getElementById("stopButton").disabled = !isSimulationRunning;
+      }
+
+      function resetGrid() {
+        window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+        window.attempts = 0;
+        lastCollapsedCell = null;
       }
 
       function displayGrid() {
@@ -115,6 +122,7 @@
       }
 
       function propagateConstraints() {
+        const breakingFields = new Set();
         let changesMade = false;
         do {
           changesMade = false;
@@ -131,6 +139,13 @@
                 }
 
                 if (newStates.length === 0) {
+                //   if (breakingFields.has(`${row}:${column}`)) {
+                //     //maybe resetting is too aggressive. Maybe just backtrack more...
+                //     resetGrid();
+                //   } else {
+                //     breakingFields.add(`${row}:${column}`);
+                //   }
+
                   backTrackUntilFixed();
                   return;
                 }
@@ -142,7 +157,7 @@
 
       function backTrackUntilFixed() {
         while (gridBreaksRules()) {
-          backTrackDecision();
+            backTrackDecision();
         }
       }
 
@@ -230,7 +245,6 @@
         window.grid.forEach((row, rowIndex) => {
           row.forEach((cell, columnIndex) => {
             if (cell.length === 0) {
-              console.log(`${rowIndex}:${columnIndex} breaks!`);
               result = true;
             }
           });
@@ -243,6 +257,11 @@
         if (!isSimulationRunning) {
           updateUI();
           return;
+        }
+
+        window.attempts++;
+        if (window.attempts > maxAttempts) {
+          resetGrid();
         }
 
         // Perform a single step of the simulation
