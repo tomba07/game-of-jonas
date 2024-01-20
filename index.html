@@ -108,6 +108,7 @@
           collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
           window.grid[row][column] = [collapsedState];
           lastCollapsedCell = { row, column }; // Update lastCollapsedCell
+          decisionStack.push([{ row, column }]);
         }
 
         return collapsedState;
@@ -124,6 +125,8 @@
 
                 if (newStates.length !== window.grid[row][column].length) {
                   window.grid[row][column] = newStates;
+                  lastCollapsedCell = { row, column }; // Update lastCollapsedCell
+                  decisionStack[decisionStack.length - 1].push({ row, column }); //these decisions are consequences of the last collapsed cell. Have to be reverted together
                   changesMade = true;
                 }
 
@@ -206,19 +209,19 @@
       }
 
       function backTrackDecision() {
-        const revertedDecision = decisionStack.pop();
-        const lastDecision = decisionStack[decisionStack.length - 1];
+        const lastDecision = decisionStack.pop();
 
         if (!lastDecision) {
           // If there are no previous decisions, reset the grid and index
           window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-          currentIndex = -1;
+          lastCollapsedCell = null;
           return;
         } else {
-          const { row, column } = lastDecision;
-
-          currentIndex--;
-          window.grid[row][column] = states;
+          lastDecision.forEach((decisionConsequence) => {
+            const { row, column } = decisionConsequence;
+            window.grid[row][column] = states;
+            lastCollapsedCell = { ...decisionStack[decisionStack.length - 1][0] };
+          });
         }
       }
 
@@ -227,6 +230,7 @@
         window.grid.forEach((row, rowIndex) => {
           row.forEach((cell, columnIndex) => {
             if (cell.length === 0) {
+              console.log(`${rowIndex}:${columnIndex} breaks!`);
               result = true;
             }
           });
@@ -246,7 +250,6 @@
         if (cell) {
           collapseCell(cell);
           propagateConstraints();
-          decisionStack.push({ row: cell.row, column: cell.column });
           currentIndex++;
         }
 
