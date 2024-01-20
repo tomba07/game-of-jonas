@@ -23,6 +23,7 @@
   <bodColumn>
     <button id="playButton">Play</button>
     <button id="stopButton">Stop</button>
+    <button id="resetButton">Reset</button>
 
     <div class="grid-container" id="gridContainer"></div>
 
@@ -30,7 +31,7 @@
       const gridContainer = document.getElementById("gridContainer");
       const gridSize = 15;
       const states = ["black", "white"];
-      const maxAttempts = (gridSize * gridSize);
+      const maxAttempts = gridSize * gridSize;
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
       let lastCollapsedCell = null;
@@ -47,6 +48,12 @@
       document.getElementById("stopButton").addEventListener("click", function () {
         isSimulationRunning = false;
         updateUI();
+      });
+      document.getElementById("resetButton").addEventListener("click", function () {
+        resetGrid();
+        isSimulationRunning = false;
+        updateUI();
+        displayGrid();
       });
 
       //render initial grid
@@ -139,12 +146,12 @@
                 }
 
                 if (newStates.length === 0) {
-                //   if (breakingFields.has(`${row}:${column}`)) {
-                //     //maybe resetting is too aggressive. Maybe just backtrack more...
-                //     resetGrid();
-                //   } else {
-                //     breakingFields.add(`${row}:${column}`);
-                //   }
+                  //   if (breakingFields.has(`${row}:${column}`)) {
+                  //     //maybe resetting is too aggressive. Maybe just backtrack more...
+                  //     resetGrid();
+                  //   } else {
+                  //     breakingFields.add(`${row}:${column}`);
+                  //   }
 
                   backTrackUntilFixed();
                   return;
@@ -157,7 +164,7 @@
 
       function backTrackUntilFixed() {
         while (gridBreaksRules()) {
-            backTrackDecision();
+          backTrackDecision();
         }
       }
 
@@ -276,6 +283,8 @@
 
         if (!isGridFullyCollapsed()) {
           requestAnimationFrame(performWaveFunctionCollapseStep); // Schedule the next step
+        } else {
+          document.getElementById("stopButton").disabled = true;
         }
       }
     </script>
