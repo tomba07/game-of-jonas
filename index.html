@@ -6,7 +6,7 @@
       .grid-container {
         display: grid;
         grid-template-columns: repeat(15, 1rem);
-        padding: .5rem;
+        padding: 0.5rem;
       }
       .grid-item {
         width: 1rem;
@@ -235,20 +235,22 @@
       }
 
       function backTrackDecision() {
-        const lastDecision = decisionStack.pop();
-
-        if (!lastDecision) {
-          // If there are no previous decisions, reset the grid and index
-          window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-          lastCollapsedCell = null;
+        if (decisionStack.length === 0) {
+          resetGrid();
           return;
-        } else {
+        }
+
+        let stepsToBacktrack = Math.min(3, decisionStack.length);
+        for (let i = 0; i < stepsToBacktrack; i++) {
+          const lastDecision = decisionStack.pop();
           lastDecision.forEach((decisionConsequence) => {
             const { row, column } = decisionConsequence;
             window.grid[row][column] = states;
-            lastCollapsedCell = { ...decisionStack[decisionStack.length - 1][0] };
           });
         }
+
+        lastCollapsedCell = decisionStack.length > 0 ? { ...decisionStack[decisionStack.length - 1][0] } : null;
+        requestAnimationFrame(displayGrid);
       }
 
       function gridBreaksRules() {
