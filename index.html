@@ -29,23 +29,23 @@
     <script>
       const gridContainer = document.getElementById("gridContainer");
       const gridSize = 15;
-      const maxAttempts = gridSize * gridSize * gridSize;
       const states = ["black", "white"];
-
-      window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-      window.attempts = 0;
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
       let lastCollapsedCell = null;
       let isSimulationRunning = false;
-      let isProcessing = false;
+
+      window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
+      window.attempts = 0;
 
       document.getElementById("playButton").addEventListener("click", function () {
         isSimulationRunning = true;
         performWaveFunctionCollapseStep();
+        updateUI();
       });
       document.getElementById("stopButton").addEventListener("click", function () {
         isSimulationRunning = false;
+        updateUI();
       });
 
       //render initial grid
@@ -225,13 +225,6 @@
         }
       }
 
-      function resetGrid() {
-        window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-        currentIndex = -1;
-        window.attempts = 0;
-        lastCollapsedCell = null;
-      }
-
       function gridBreaksRules() {
         let result = false;
         window.grid.forEach((row, rowIndex) => {
@@ -246,31 +239,25 @@
       }
 
       function performWaveFunctionCollapseStep() {
-        if (!isSimulationRunning || isProcessing) {
+        if (!isSimulationRunning) {
+          updateUI();
           return;
         }
-        isProcessing = true;
 
-        window.attempts++;
-        if (window.attempts > maxAttempts) {
-          resetGrid();
-        }
-        if (!isGridFullyCollapsed()) {
-          const cell = selectCellToCollapse();
-          const chosenState = collapseCell(selectCellToCollapse());
+        // Perform a single step of the simulation
+        const cell = selectCellToCollapse();
+        if (cell) {
+          collapseCell(cell);
           propagateConstraints();
-
-          decisionStack.push({
-            row: cell.row,
-            column: cell.column
-          });
+          decisionStack.push({ row: cell.row, column: cell.column });
           currentIndex++;
-          isProcessing = false;
-          if (isSimulationRunning) {
-            setTimeout(() => performWaveFunctionCollapseStep(), 1);
-          }
         }
+
         displayGrid();
+
+        if (!isGridFullyCollapsed()) {
+          requestAnimationFrame(performWaveFunctionCollapseStep); // Schedule the next step
+        }
       }
     </script>
   </bodColumn>
