@@ -5,7 +5,7 @@
     <style>
       .grid-container {
         display: grid;
-        grid-template-columns: repeat(15, 10px);
+        grid-template-columns: repeat(30, 10px);
       }
       .grid-item {
         width: 10px;
@@ -28,7 +28,7 @@
 
     <script>
       const gridContainer = document.getElementById("gridContainer");
-      const gridSize = 15;
+      const gridSize = 30;
       const states = ["black", "white"];
       let decisionStack = []; // Global decision stack
       let currentIndex = -1; // Points to the current decision
@@ -144,30 +144,31 @@
       }
 
       function isValidState(row, column, state) {
-        const gridCopy = copyGrid(window.grid);
         const gridSize = window.grid.length;
-        gridCopy[row][column] = [state];
+        window.grid[row][column] = [state];
 
         // Check all 2x2 grids including the cell (row, column)
         for (let dRow = -1; dRow <= 0; dRow++) {
           for (let dColumn = -1; dColumn <= 0; dColumn++) {
-            if (!is2x2Valid(dRow + row, dColumn + column, gridCopy)) {
+            if (!is2x2Valid(dRow + row, dColumn + column)) {
+              window.grid[row][column] = states;
               return false;
             }
           }
         }
+        window.grid[row][column] = states;
         return true;
       }
 
-      function is2x2Valid(topLeftRow, topLeftColumn, gridCopy) {
-        const gridSize = gridCopy.length;
+      function is2x2Valid(topLeftRow, topLeftColumn) {
+        const gridSize = window.grid.length;
         let result = true;
 
         if (!(topLeftRow < 0 || topLeftColumn < 0 || topLeftRow >= gridSize - 1 || topLeftColumn >= gridSize - 1)) {
-          const cell1 = gridCopy[topLeftRow][topLeftColumn];
-          const cell2 = gridCopy[topLeftRow + 1][topLeftColumn];
-          const cell3 = gridCopy[topLeftRow][topLeftColumn + 1];
-          const cell4 = gridCopy[topLeftRow + 1][topLeftColumn + 1];
+          const cell1 = window.grid[topLeftRow][topLeftColumn];
+          const cell2 = window.grid[topLeftRow + 1][topLeftColumn];
+          const cell3 = window.grid[topLeftRow][topLeftColumn + 1];
+          const cell4 = window.grid[topLeftRow + 1][topLeftColumn + 1];
           const allCollapsed = cell1.length === 1 && cell2.length === 1 && cell3.length === 1 && cell4.length === 1;
 
           if (allCollapsed) {
@@ -202,10 +203,6 @@
 
       function isGridFullyCollapsed() {
         return window.grid.every((row) => row.every((cell) => cell.length === 1));
-      }
-
-      function copyGrid() {
-        return window.grid.map((row) => row.map((cell) => [...cell]));
       }
 
       function backTrackDecision() {
