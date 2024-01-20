@@ -163,8 +163,11 @@
       }
 
       function backTrackUntilFixed() {
-        while (gridBreaksRules()) {
-          backTrackDecision();
+        if (gridBreaksRules()) {
+          requestAnimationFrame(() => {
+            backTrackDecision();
+            backTrackUntilFixed(); // Recursively call the function until the grid no longer breaks the rules.
+          });
         }
       }
 
