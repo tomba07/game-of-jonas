@@ -181,16 +181,8 @@
       function countCollapsedNeighbors(row, column) {
         const neighbors = getNeighbors(row, column, GRID_SIZE);
         return neighbors.reduce((count, neighbor) => {
-          // Count the neighbor as collapsed if it is outside the grid or has a state length of 1
-          if (!isWithinGridBounds(neighbor.row, neighbor.column) || grid[neighbor.row][neighbor.column].length === 1) {
-            return count + 1;
-          }
-          return count;
+          return count + (grid[neighbor.row][neighbor.column].length === 1 ? 1 : 0);
         }, 0);
-      }
-
-      function isWithinGridBounds(row, column) {
-        return row >= 0 && column >= 0 && row < GRID_SIZE && column < GRID_SIZE;
       }
 
       function collapseCell(cell) {
