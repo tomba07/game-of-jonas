@@ -11,6 +11,8 @@
   <body>
     <label for="gridSizeInput">Grid Size:</label>
     <input type="number" id="gridSizeInput" value="20" min="1" max="100" />
+    <label for="speedInput">Speed:</label>
+    <input type="number" id="speedInput" value="5" min="1" max="100" />
     <br /><br />
     <button id="playButton">Play</button>
     <button id="stopButton" disabled>Stop</button>
@@ -20,9 +22,9 @@
 
     <script>
       const STATES = ["black", "white"];
-      let MAX_ATTEMPTS;
-      let GRID_SIZE;
-      let gridCanvas,
+      let MAX_ATTEMPTS,
+        GRID_SIZE,
+        gridCanvas,
         ctx,
         grid,
         attempts,
@@ -30,10 +32,13 @@
         lastCollapsedCell,
         isSimulationRunning,
         currentIndex,
-        cellSize = 10;
+        cellSize = 10,
+        SPEED,
+        collapsesSinceLastPaint = 0;
 
       function initialize() {
         gridCanvas = document.getElementById("gridCanvas");
+        SPEED = parseInt(document.getElementById("speedInput").value);
         ctx = gridCanvas.getContext("2d");
         GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
         setupGrid();
@@ -46,6 +51,11 @@
         document.getElementById("playButton").addEventListener("click", startSimulation);
         document.getElementById("stopButton").addEventListener("click", stopSimulation);
         document.getElementById("resetButton").addEventListener("click", resetSimulation);
+        document.getElementById("speedInput").addEventListener("input", updateSpeed);
+      }
+
+      function updateSpeed() {
+        SPEED = parseInt(document.getElementById("speedInput").value);
       }
 
       function updateGridSize() {
@@ -96,19 +106,24 @@
       }
 
       function displayGrid() {
-        ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-        gridCanvas.width = GRID_SIZE * cellSize;
-        gridCanvas.height = GRID_SIZE * cellSize;
+        return new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+            gridCanvas.width = GRID_SIZE * cellSize;
+            gridCanvas.height = GRID_SIZE * cellSize;
 
-        grid.forEach((row, rowIndex) => {
-          row.forEach((cellState, columnIndex) => {
-            ctx.fillStyle = cellState.length === 1 ? (cellState[0] === "black" ? "black" : "white") : "lightgrey";
-            ctx.fillRect(columnIndex * cellSize, rowIndex * cellSize, cellSize, cellSize);
+            grid.forEach((row, rowIndex) => {
+              row.forEach((cellState, columnIndex) => {
+                ctx.fillStyle = cellState.length === 1 ? (cellState[0] === "black" ? "black" : "white") : "lightgrey";
+                ctx.fillRect(columnIndex * cellSize, rowIndex * cellSize, cellSize, cellSize);
+              });
+            });
+            resolve();
           });
         });
       }
 
-      function performWaveFunctionCollapseStep() {
+      async function performWaveFunctionCollapseStep() {
         if (!isSimulationRunning) {
           updateUI();
           return;
@@ -125,10 +140,14 @@
           collapseCellAndPropagate(cell);
         }
 
-        displayGrid();
+        collapsesSinceLastPaint++;
+        if (collapsesSinceLastPaint >= SPEED || isGridFullyCollapsed()) {
+          await displayGrid();
+          collapsesSinceLastPaint = 0;
+        }
 
         if (!isGridFullyCollapsed()) {
-          requestAnimationFrame(performWaveFunctionCollapseStep); // Schedule the next step
+          performWaveFunctionCollapseStep();
         } else {
           endSimulation();
         }
