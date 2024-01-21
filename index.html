@@ -147,13 +147,6 @@
                 }
 
                 if (newStates.length === 0) {
-                  //   if (breakingFields.has(`${row}:${column}`)) {
-                  //     //maybe resetting is too aggressive. Maybe just backtrack more...
-                  //     resetGrid();
-                  //   } else {
-                  //     breakingFields.add(`${row}:${column}`);
-                  //   }
-
                   backTrackUntilFixed();
                   return;
                 }
@@ -190,29 +183,43 @@
       }
 
       function is2x2Valid(topLeftRow, topLeftColumn) {
-        const gridSize = window.grid.length;
-        let result = true;
-
-        if (!(topLeftRow < 0 || topLeftColumn < 0 || topLeftRow >= gridSize - 1 || topLeftColumn >= gridSize - 1)) {
-          const cell1 = window.grid[topLeftRow][topLeftColumn];
-          const cell2 = window.grid[topLeftRow + 1][topLeftColumn];
-          const cell3 = window.grid[topLeftRow][topLeftColumn + 1];
-          const cell4 = window.grid[topLeftRow + 1][topLeftColumn + 1];
-          const allCollapsed = cell1.length === 1 && cell2.length === 1 && cell3.length === 1 && cell4.length === 1;
-
-          if (allCollapsed) {
-            const color1 = cell1[0];
-            const color2 = cell2[0];
-            const color3 = cell3[0];
-            const color4 = cell4[0];
-            const allColorsSame = color1 === color2 && color2 === color3 && color3 === color4;
-            const checkeredPattern = color1 === color4 && color2 === color3 && color1 !== color2;
-
-            result = !allColorsSame && !checkeredPattern;
-          }
+        if (!isWithinGridBounds(topLeftRow, topLeftColumn)) {
+          return true;
         }
 
-        return result;
+        const cells = get2x2Cells(topLeftRow, topLeftColumn);
+        if (!areAllCellsCollapsed(cells)) {
+          return true;
+        }
+
+        return !areAllColorsSame(cells) && !isCheckeredPattern(cells);
+      }
+
+      function isWithinGridBounds(row, column) {
+        const gridSize = window.grid.length;
+        return row >= 0 && column >= 0 && row < gridSize - 1 && column < gridSize - 1;
+      }
+
+      function get2x2Cells(row, column) {
+        return [
+          window.grid[row][column],
+          window.grid[row + 1][column],
+          window.grid[row][column + 1],
+          window.grid[row + 1][column + 1]
+        ];
+      }
+
+      function areAllCellsCollapsed(cells) {
+        return cells.every((cell) => cell.length === 1);
+      }
+
+      function areAllColorsSame(cells) {
+        const firstColor = cells[0][0];
+        return cells.every((cell) => cell[0] === firstColor);
+      }
+
+      function isCheckeredPattern(cells) {
+        return cells[0][0] === cells[3][0] && cells[1][0] === cells[2][0] && cells[0][0] !== cells[1][0];
       }
 
       function getNeighbors(row, column, gridSize) {
