@@ -28,7 +28,7 @@
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
-      const GRID_SIZE = 15;
+      const GRID_SIZE = 80;
       const STATES = ["black", "white"];
       const MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
       const gridContainer = document.getElementById("gridContainer");
@@ -135,18 +135,17 @@
       }
 
       function selectCellToCollapse() {
+        let maxCollapsedNeighbors = -1;
         let potentialCells = [];
 
-        if (lastCollapsedCell) {
-          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, GRID_SIZE);
-          potentialCells = neighbors.filter((neighbor) => grid[neighbor.row][neighbor.column].length > 1);
-        }
-
-        if (potentialCells.length === 0) {
-          // No available neighbors, fallback to selecting from any uncollapsed cells
-          for (let row = 0; row < GRID_SIZE; row++) {
-            for (let column = 0; column < GRID_SIZE; column++) {
-              if (grid[row][column].length > 1) {
+        for (let row = 0; row < GRID_SIZE; row++) {
+          for (let column = 0; column < GRID_SIZE; column++) {
+            if (grid[row][column].length > 1) {
+              let collapsedNeighbors = countCollapsedNeighbors(row, column);
+              if (collapsedNeighbors > maxCollapsedNeighbors) {
+                maxCollapsedNeighbors = collapsedNeighbors;
+                potentialCells = [{ row, column }];
+              } else if (collapsedNeighbors === maxCollapsedNeighbors) {
                 potentialCells.push({ row, column });
               }
             }
@@ -159,6 +158,13 @@
         }
 
         return null;
+      }
+
+      function countCollapsedNeighbors(row, column) {
+        const neighbors = getNeighbors(row, column, GRID_SIZE);
+        return neighbors.reduce((count, neighbor) => {
+          return count + (grid[neighbor.row][neighbor.column].length === 1 ? 1 : 0);
+        }, 0);
       }
 
       function collapseCell(cell) {
