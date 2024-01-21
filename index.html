@@ -28,7 +28,7 @@
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
-      const GRID_SIZE = 15;
+      const GRID_SIZE = 50;
       const STATES = ["black", "white"];
       const MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
       const gridContainer = document.getElementById("gridContainer");
@@ -135,30 +135,29 @@
       }
 
       function selectCellToCollapse() {
-        let potentialCells = [];
+        let minDistance = Infinity;
+        let closestCell = null;
 
-        if (lastCollapsedCell) {
-          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, GRID_SIZE);
-          potentialCells = neighbors.filter((neighbor) => grid[neighbor.row][neighbor.column].length > 1);
-        }
+        const centerRow = Math.floor(GRID_SIZE / 2);
+        const centerColumn = Math.floor(GRID_SIZE / 2);
 
-        if (potentialCells.length === 0) {
-          // No available neighbors, fallback to selecting from any uncollapsed cells
-          for (let row = 0; row < GRID_SIZE; row++) {
-            for (let column = 0; column < GRID_SIZE; column++) {
-              if (grid[row][column].length > 1) {
-                potentialCells.push({ row, column });
+        for (let row = 0; row < GRID_SIZE; row++) {
+          for (let column = 0; column < GRID_SIZE; column++) {
+            if (grid[row][column].length > 1) {
+              let distance = calculateDistance(row, column, centerRow, centerColumn);
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestCell = { row, column };
               }
             }
           }
         }
 
-        if (potentialCells.length > 0) {
-          const randomIndex = Math.floor(Math.random() * potentialCells.length);
-          return potentialCells[randomIndex];
-        }
+        return closestCell;
+      }
 
-        return null;
+      function calculateDistance(row1, col1, row2, col2) {
+        return Math.sqrt(Math.pow(row1 - row2, 2) + Math.pow(col1 - col2, 2));
       }
 
       function collapseCell(cell) {
