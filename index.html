@@ -21,6 +21,9 @@
     </style>
   </head>
   <body>
+    <label for="gridSizeInput">Grid Size:</label>
+    <input type="number" id="gridSizeInput" value="20" min="1" max="100" />
+    <br /><br />
     <button id="playButton">Play</button>
     <button id="stopButton" disabled>Stop</button>
     <button id="resetButton">Reset</button>
@@ -28,27 +31,40 @@
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
-      const GRID_SIZE = 80;
       const STATES = ["black", "white"];
-      const MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
-      const gridContainer = document.getElementById("gridContainer");
-      let grid, attempts, decisionStack, lastCollapsedCell, isSimulationRunning, currentIndex;
+      let MAX_ATTEMPTS;
+      let GRID_SIZE; // Remove the constant declaration
+      let gridContainer, grid, attempts, decisionStack, lastCollapsedCell, isSimulationRunning, currentIndex;
 
       function initialize() {
-        gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`;
-        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
-        attempts = 0;
-        decisionStack = [];
-        lastCollapsedCell = null;
-        isSimulationRunning = false;
+        gridContainer = document.getElementById("gridContainer");
+        GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
+        setupGrid();
         setupEventListeners();
         displayGrid();
       }
 
       function setupEventListeners() {
+        document.getElementById("gridSizeInput").addEventListener("input", updateGridSize);
         document.getElementById("playButton").addEventListener("click", startSimulation);
         document.getElementById("stopButton").addEventListener("click", stopSimulation);
         document.getElementById("resetButton").addEventListener("click", resetSimulation);
+      }
+
+      function updateGridSize() {
+        GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
+        MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
+        setupGrid();
+        displayGrid();
+      }
+
+      function setupGrid() {
+        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
+        gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`;
+        attempts = 0;
+        decisionStack = [];
+        lastCollapsedCell = null;
+        isSimulationRunning = false;
       }
 
       function startSimulation() {
@@ -68,8 +84,10 @@
         updateUI();
         displayGrid();
       }
-
       function updateUI() {
+        const gridSizeInput = document.getElementById("gridSizeInput");
+        gridSizeInput.disabled = isSimulationRunning;
+
         document.getElementById("playButton").disabled = isSimulationRunning;
         document.getElementById("stopButton").disabled = !isSimulationRunning;
       }
