@@ -21,7 +21,7 @@
       }
     </style>
   </head>
-  <bodColumn>
+  <body>
     <button id="playButton">Play</button>
     <button id="stopButton">Stop</button>
     <button id="resetButton">Reset</button>
@@ -29,36 +29,45 @@
     <div class="grid-container" id="gridContainer"></div>
 
     <script>
+      const GRID_SIZE = 15;
+      const STATES = ["black", "white"];
+      const MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
       const gridContainer = document.getElementById("gridContainer");
-      const gridSize = 15;
-      const states = ["black", "white"];
-      const maxAttempts = gridSize * gridSize;
-      let decisionStack = []; // Global decision stack
-      let currentIndex = -1; // Points to the current decision
-      let lastCollapsedCell = null;
-      let isSimulationRunning = false;
+      let grid, attempts, decisionStack, lastCollapsedCell, isSimulationRunning, currentIndex;
 
-      window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-      window.attempts = 0;
+      function initialize() {
+        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
+        attempts = 0;
+        decisionStack = [];
+        lastCollapsedCell = null;
+        isSimulationRunning = false;
+        setupEventListeners();
+        displayGrid();
+      }
 
-      document.getElementById("playButton").addEventListener("click", function () {
+      function setupEventListeners() {
+        document.getElementById("playButton").addEventListener("click", startSimulation);
+        document.getElementById("stopButton").addEventListener("click", stopSimulation);
+        document.getElementById("resetButton").addEventListener("click", resetSimulation);
+      }
+
+      function startSimulation() {
         isSimulationRunning = true;
         performWaveFunctionCollapseStep();
         updateUI();
-      });
-      document.getElementById("stopButton").addEventListener("click", function () {
+      }
+
+      function stopSimulation() {
         isSimulationRunning = false;
         updateUI();
-      });
-      document.getElementById("resetButton").addEventListener("click", function () {
+      }
+
+      function resetSimulation() {
         resetGrid();
         isSimulationRunning = false;
         updateUI();
         displayGrid();
-      });
-
-      //render initial grid
-      displayGrid();
+      }
 
       function updateUI() {
         document.getElementById("playButton").disabled = isSimulationRunning;
@@ -66,14 +75,14 @@
       }
 
       function resetGrid() {
-        window.grid = Array.from({ length: gridSize }, () => Array(gridSize).fill([...states]));
-        window.attempts = 0;
+        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
+        attempts = 0;
         lastCollapsedCell = null;
       }
 
       function displayGrid() {
         gridContainer.innerHTML = "";
-        window.grid.forEach((row, rowIndex) => {
+        grid.forEach((row, rowIndex) => {
           row.forEach((cellState, columnIndex) => {
             const cell = document.createElement("div");
             cell.className = "grid-item";
@@ -87,19 +96,57 @@
         });
       }
 
+      function performWaveFunctionCollapseStep() {
+        if (!isSimulationRunning) {
+          updateUI();
+          return;
+        }
+
+        attempts++;
+        if (attempts > MAX_ATTEMPTS) {
+          resetGrid();
+          displayGrid();
+        }
+
+        const cell = selectCellToCollapse();
+        if (cell) {
+          collapseCellAndPropagate(cell);
+        }
+
+        displayGrid();
+
+        if (!isGridFullyCollapsed()) {
+          requestAnimationFrame(performWaveFunctionCollapseStep); // Schedule the next step
+        } else {
+          endSimulation();
+        }
+      }
+
+      function collapseCellAndPropagate(cell) {
+        collapseCell(cell);
+        propagateConstraints();
+        currentIndex++;
+      }
+
+      function endSimulation() {
+        isSimulationRunning = false;
+        document.getElementById("stopButton").disabled = true;
+        updateUI();
+      }
+
       function selectCellToCollapse() {
         let potentialCells = [];
 
         if (lastCollapsedCell) {
-          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, gridSize);
-          potentialCells = neighbors.filter((neighbor) => window.grid[neighbor.row][neighbor.column].length > 1);
+          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, GRID_SIZE);
+          potentialCells = neighbors.filter((neighbor) => grid[neighbor.row][neighbor.column].length > 1);
         }
 
         if (potentialCells.length === 0) {
           // No available neighbors, fallback to selecting from any uncollapsed cells
-          for (let row = 0; row < gridSize; row++) {
-            for (let column = 0; column < gridSize; column++) {
-              if (window.grid[row][column].length > 1) {
+          for (let row = 0; row < GRID_SIZE; row++) {
+            for (let column = 0; column < GRID_SIZE; column++) {
+              if (grid[row][column].length > 1) {
                 potentialCells.push({ row, column });
               }
             }
@@ -116,12 +163,12 @@
 
       function collapseCell(cell) {
         let { row, column } = cell;
-        let cellStates = window.grid[row][column];
+        let cellStates = grid[row][column];
         let collapsedState = null;
 
         if (cellStates.length > 1) {
           collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
-          window.grid[row][column] = [collapsedState];
+          grid[row][column] = [collapsedState];
           lastCollapsedCell = { row, column }; // Update lastCollapsedCell
           decisionStack.push([{ row, column }]);
         }
@@ -134,13 +181,13 @@
         let changesMade = false;
         do {
           changesMade = false;
-          for (let row = 0; row < gridSize; row++) {
-            for (let column = 0; column < gridSize; column++) {
-              if (window.grid[row][column].length > 1) {
-                let newStates = window.grid[row][column].filter((state) => isValidState(row, column, state));
+          for (let row = 0; row < GRID_SIZE; row++) {
+            for (let column = 0; column < GRID_SIZE; column++) {
+              if (grid[row][column].length > 1) {
+                let newStates = grid[row][column].filter((state) => isValidState(row, column, state));
 
-                if (newStates.length !== window.grid[row][column].length) {
-                  window.grid[row][column] = newStates;
+                if (newStates.length !== grid[row][column].length) {
+                  grid[row][column] = newStates;
                   lastCollapsedCell = { row, column }; // Update lastCollapsedCell
                   decisionStack[decisionStack.length - 1].push({ row, column }); //these decisions are consequences of the last collapsed cell. Have to be reverted together
                   changesMade = true;
@@ -156,29 +203,20 @@
         } while (changesMade);
       }
 
-      function backTrackUntilFixed() {
-        if (gridBreaksRules()) {
-          requestAnimationFrame(() => {
-            backTrackDecision();
-            backTrackUntilFixed(); // Recursively call the function until the grid no longer breaks the rules.
-          });
-        }
-      }
-
       function isValidState(row, column, state) {
-        const gridSize = window.grid.length;
-        window.grid[row][column] = [state];
+        const gridSize = grid.length;
+        grid[row][column] = [state];
 
         // Check all 2x2 grids including the cell (row, column)
         for (let dRow = -1; dRow <= 0; dRow++) {
           for (let dColumn = -1; dColumn <= 0; dColumn++) {
             if (!is2x2Valid(dRow + row, dColumn + column)) {
-              window.grid[row][column] = states;
+              grid[row][column] = STATES;
               return false;
             }
           }
         }
-        window.grid[row][column] = states;
+        grid[row][column] = STATES;
         return true;
       }
 
@@ -196,17 +234,12 @@
       }
 
       function isWithinGridBounds(row, column) {
-        const gridSize = window.grid.length;
+        const gridSize = grid.length;
         return row >= 0 && column >= 0 && row < gridSize - 1 && column < gridSize - 1;
       }
 
       function get2x2Cells(row, column) {
-        return [
-          window.grid[row][column],
-          window.grid[row + 1][column],
-          window.grid[row][column + 1],
-          window.grid[row + 1][column + 1]
-        ];
+        return [grid[row][column], grid[row + 1][column], grid[row][column + 1], grid[row + 1][column + 1]];
       }
 
       function areAllCellsCollapsed(cells) {
@@ -220,6 +253,10 @@
 
       function isCheckeredPattern(cells) {
         return cells[0][0] === cells[3][0] && cells[1][0] === cells[2][0] && cells[0][0] !== cells[1][0];
+      }
+
+      function isGridFullyCollapsed() {
+        return grid.every((row) => row.every((cell) => cell.length === 1));
       }
 
       function getNeighbors(row, column, gridSize) {
@@ -237,8 +274,26 @@
         return neighbors;
       }
 
-      function isGridFullyCollapsed() {
-        return window.grid.every((row) => row.every((cell) => cell.length === 1));
+      function backTrackUntilFixed() {
+        if (gridBreaksRules()) {
+          requestAnimationFrame(() => {
+            backTrackDecision();
+            backTrackUntilFixed(); // Recursively call the function until the grid no longer breaks the rules.
+          });
+        }
+      }
+
+      function gridBreaksRules() {
+        let result = false;
+        grid.forEach((row, rowIndex) => {
+          row.forEach((cell, columnIndex) => {
+            if (cell.length === 0) {
+              result = true;
+            }
+          });
+        });
+
+        return result;
       }
 
       function backTrackDecision() {
@@ -252,7 +307,7 @@
           const lastDecision = decisionStack.pop();
           lastDecision.forEach((decisionConsequence) => {
             const { row, column } = decisionConsequence;
-            window.grid[row][column] = states;
+            grid[row][column] = STATES;
           });
         }
 
@@ -260,46 +315,7 @@
         requestAnimationFrame(displayGrid);
       }
 
-      function gridBreaksRules() {
-        let result = false;
-        window.grid.forEach((row, rowIndex) => {
-          row.forEach((cell, columnIndex) => {
-            if (cell.length === 0) {
-              result = true;
-            }
-          });
-        });
-
-        return result;
-      }
-
-      function performWaveFunctionCollapseStep() {
-        if (!isSimulationRunning) {
-          updateUI();
-          return;
-        }
-
-        window.attempts++;
-        if (window.attempts > maxAttempts) {
-          resetGrid();
-        }
-
-        // Perform a single step of the simulation
-        const cell = selectCellToCollapse();
-        if (cell) {
-          collapseCell(cell);
-          propagateConstraints();
-          currentIndex++;
-        }
-
-        displayGrid();
-
-        if (!isGridFullyCollapsed()) {
-          requestAnimationFrame(performWaveFunctionCollapseStep); // Schedule the next step
-        } else {
-          document.getElementById("stopButton").disabled = true;
-        }
-      }
+      initialize();
     </script>
-  </bodColumn>
+  </body>
 </html>
