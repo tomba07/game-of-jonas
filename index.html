@@ -3,20 +3,8 @@
   <head>
     <title>Wave Function Collapse Simulation</title>
     <style>
-      .grid-container {
-        display: grid;
-        padding: 0.5rem;
-      }
-      .grid-item {
-        width: 1rem;
-        height: 1rem;
-        background-color: white;
-      }
-      .black {
-        background-color: black;
-      }
-      .uncollapsed {
-        background-color: lightgrey;
+      canvas {
+        border: 1px solid black;
       }
     </style>
   </head>
@@ -27,17 +15,26 @@
     <button id="playButton">Play</button>
     <button id="stopButton" disabled>Stop</button>
     <button id="resetButton">Reset</button>
-
-    <div class="grid-container" id="gridContainer"></div>
+    <br /><br />
+    <canvas id="gridCanvas"></canvas>
 
     <script>
       const STATES = ["black", "white"];
       let MAX_ATTEMPTS;
-      let GRID_SIZE; // Remove the constant declaration
-      let gridContainer, grid, attempts, decisionStack, lastCollapsedCell, isSimulationRunning, currentIndex;
+      let GRID_SIZE;
+      let gridCanvas,
+        ctx,
+        grid,
+        attempts,
+        decisionStack,
+        lastCollapsedCell,
+        isSimulationRunning,
+        currentIndex,
+        cellSize = 10;
 
       function initialize() {
-        gridContainer = document.getElementById("gridContainer");
+        gridCanvas = document.getElementById("gridCanvas");
+        ctx = gridCanvas.getContext("2d");
         GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
         setupGrid();
         setupEventListeners();
@@ -60,7 +57,7 @@
 
       function setupGrid() {
         grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
-        gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`;
+        // gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`; // Removed or comment out this line
         attempts = 0;
         decisionStack = [];
         lastCollapsedCell = null;
@@ -99,17 +96,14 @@
       }
 
       function displayGrid() {
-        gridContainer.innerHTML = "";
+        ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+        gridCanvas.width = GRID_SIZE * cellSize;
+        gridCanvas.height = GRID_SIZE * cellSize;
+
         grid.forEach((row, rowIndex) => {
           row.forEach((cellState, columnIndex) => {
-            const cell = document.createElement("div");
-            cell.className = "grid-item";
-            if (cellState.length === 1) {
-              cell.classList.add(cellState[0]);
-            } else {
-              cell.classList.add("uncollapsed");
-            }
-            gridContainer.appendChild(cell);
+            ctx.fillStyle = cellState.length === 1 ? (cellState[0] === "black" ? "black" : "white") : "lightgrey";
+            ctx.fillRect(columnIndex * cellSize, rowIndex * cellSize, cellSize, cellSize);
           });
         });
       }
