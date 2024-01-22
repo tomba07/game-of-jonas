@@ -10,9 +10,15 @@
   </head>
   <body>
     <label for="gridSizeInput">Grid Size:</label>
-    <input type="number" id="gridSizeInput" value="20" min="1" max="100" />
+    <input type="number" id="gridSizeInput" value="30" min="1" max="100" />
     <label for="speedInput">Speed:</label>
     <input type="number" id="speedInput" value="5" min="1" max="100" />
+    <label for="collapseMethodSelect">Method:</label>
+    <select id="collapseMethodSelect">
+      <option value="mostCollapsedNeighbors">Most Collapsed Neighbors</option>
+      <option value="middleOut">Middle Out</option>
+      <option value="nextToLastCollapsed">Next to Last Collapsed</option>
+    </select>
     <br /><br />
     <button id="playButton">Play</button>
     <button id="stopButton" disabled>Stop</button>
@@ -22,12 +28,10 @@
 
     <script>
       const STATES = ["black", "white"];
-      let MAX_ATTEMPTS,
-        GRID_SIZE,
+      let GRID_SIZE,
         gridCanvas,
         ctx,
         grid,
-        attempts,
         decisionStack,
         lastCollapsedCell,
         isSimulationRunning,
@@ -60,7 +64,6 @@
 
       function updateGridSize() {
         GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
-        MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
         setupGrid();
         displayGrid();
       }
@@ -68,7 +71,6 @@
       function setupGrid() {
         grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
         // gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`; // Removed or comment out this line
-        attempts = 0;
         decisionStack = [];
         lastCollapsedCell = null;
         isSimulationRunning = false;
@@ -101,7 +103,6 @@
 
       function resetGrid() {
         grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
-        attempts = 0;
         lastCollapsedCell = null;
       }
 
@@ -127,12 +128,6 @@
         if (!isSimulationRunning) {
           updateUI();
           return;
-        }
-
-        attempts++;
-        if (attempts > MAX_ATTEMPTS) {
-          resetGrid();
-          displayGrid();
         }
 
         const cell = selectCellToCollapse();
@@ -166,6 +161,73 @@
       }
 
       function selectCellToCollapse() {
+        const collapseMethod = document.getElementById("collapseMethodSelect").value;
+        switch (collapseMethod) {
+          case "middleOut":
+            return selectCellMiddleOut();
+          case "nextToLastCollapsed":
+            return selectCellNextToLastCollapsed();
+          case "mostCollapsedNeighbors":
+            return selectCellMostCollapsedNeighbors();
+          default:
+            return null;
+        }
+      }
+
+      function selectCellMiddleOut() {
+        let minDistance = Infinity;
+        let closestCell = null;
+
+        const centerRow = Math.floor(GRID_SIZE / 2);
+        const centerColumn = Math.floor(GRID_SIZE / 2);
+
+        for (let row = 0; row < GRID_SIZE; row++) {
+          for (let column = 0; column < GRID_SIZE; column++) {
+            if (grid[row][column].length > 1) {
+              let distance = calculateDistance(row, column, centerRow, centerColumn);
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestCell = { row, column };
+              }
+            }
+          }
+        }
+
+        return closestCell;
+      }
+
+      function calculateDistance(row1, col1, row2, col2) {
+        return Math.sqrt(Math.pow(row1 - row2, 2) + Math.pow(col1 - col2, 2));
+      }
+
+      function selectCellNextToLastCollapsed() {
+        let potentialCells = [];
+
+        if (lastCollapsedCell) {
+          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, GRID_SIZE);
+          potentialCells = neighbors.filter((neighbor) => grid[neighbor.row][neighbor.column].length > 1);
+        }
+
+        if (potentialCells.length === 0) {
+          // No available neighbors, fallback to selecting from any uncollapsed cells
+          for (let row = 0; row < GRID_SIZE; row++) {
+            for (let column = 0; column < GRID_SIZE; column++) {
+              if (grid[row][column].length > 1) {
+                potentialCells.push({ row, column });
+              }
+            }
+          }
+        }
+
+        if (potentialCells.length > 0) {
+          const randomIndex = Math.floor(Math.random() * potentialCells.length);
+          return potentialCells[randomIndex];
+        }
+
+        return null;
+      }
+
+      function selectCellMostCollapsedNeighbors() {
         let maxCollapsedNeighbors = -1;
         let potentialCells = [];
 
