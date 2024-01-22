@@ -60,7 +60,7 @@
 
       function updateGridSize() {
         GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
-        MAX_ATTEMPTS = GRID_SIZE * 2;
+        MAX_ATTEMPTS = GRID_SIZE * GRID_SIZE;
         setupGrid();
         displayGrid();
       }
