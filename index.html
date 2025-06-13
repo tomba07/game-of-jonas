@@ -1,420 +1,105 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Wave Function Collapse Simulation</title>
-    <style>
-      canvas {
-        border: 1px solid black;
-      }
-    </style>
-  </head>
-  <body>
-    <label for="gridSizeInput">Grid Size:</label>
-    <input type="number" id="gridSizeInput" value="30" min="1" max="100" />
-    <label for="speedInput">Speed:</label>
-    <input type="number" id="speedInput" value="5" min="1" max="100" />
-    <label for="collapseMethodSelect">Method:</label>
-    <select id="collapseMethodSelect">
-      <option value="mostCollapsedNeighbors">Most Collapsed Neighbors</option>
-      <option value="middleOut">Middle Out</option>
-      <option value="nextToLastCollapsed">Next to Last Collapsed</option>
-    </select>
-    <br /><br />
-    <button id="playButton">Play</button>
-    <button id="stopButton" disabled>Stop</button>
-    <button id="resetButton">Reset</button>
-    <br /><br />
-    <canvas id="gridCanvas"></canvas>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>No 2×2 Monochrome Grid Demo</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      margin: 2rem;
+    }
+    canvas {
+      border: 1px solid #444;
+      aspect-ratio: 1 / 1; /* keep the canvas square */
+      max-width: 90vmin;
+      height: auto;
+    }
+    #controls {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    input, button {
+      padding: 0.3rem 0.6rem;
+      font-size: 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #777;
+    }
+    button {
+      cursor: pointer;
+      background: #f5f5f5;
+      transition: background 0.2s;
+    }
+    button:hover { background: #e0e0e0; }
+  </style>
+</head>
+<body>
+  <h1>No 2×2 Monochrome Grid Demo</h1>
+  <canvas id="grid" width="400" height="400"></canvas>
 
-    <script>
-      const STATES = ["black", "white"];
-      let GRID_SIZE,
-        gridCanvas,
-        ctx,
-        grid,
-        decisionStack,
-        lastCollapsedCell,
-        isSimulationRunning,
-        currentIndex,
-        cellSize = 10,
-        SPEED,
-        collapsesSinceLastPaint = 0;
+  <div id="controls">
+    <label>Grid size (n × n):
+      <input type="number" id="size" value="20" min="4" max="200" step="1">
+    </label>
+    <button id="generate">Generate</button>
+  </div>
 
-      function initialize() {
-        gridCanvas = document.getElementById("gridCanvas");
-        SPEED = parseInt(document.getElementById("speedInput").value);
-        ctx = gridCanvas.getContext("2d");
-        GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
-        setupGrid();
-        setupEventListeners();
-        displayGrid();
-      }
+  <script>
+    /** Greedy fill that avoids monochrome 2×2 blocks. */
+    function generateGrid(rows, cols) {
+      const g = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          let forbidden = null;
 
-      function setupEventListeners() {
-        document.getElementById("gridSizeInput").addEventListener("input", updateGridSize);
-        document.getElementById("playButton").addEventListener("click", startSimulation);
-        document.getElementById("stopButton").addEventListener("click", stopSimulation);
-        document.getElementById("resetButton").addEventListener("click", resetSimulation);
-        document.getElementById("speedInput").addEventListener("input", updateSpeed);
-      }
-
-      function updateSpeed() {
-        SPEED = parseInt(document.getElementById("speedInput").value);
-      }
-
-      function updateGridSize() {
-        GRID_SIZE = parseInt(document.getElementById("gridSizeInput").value);
-        setupGrid();
-        displayGrid();
-      }
-
-      function setupGrid() {
-        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
-        // gridContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1rem)`; // Removed or comment out this line
-        decisionStack = [];
-        lastCollapsedCell = null;
-        isSimulationRunning = false;
-      }
-
-      function startSimulation() {
-        isSimulationRunning = true;
-        performWaveFunctionCollapseStep();
-        updateUI();
-      }
-
-      function stopSimulation() {
-        isSimulationRunning = false;
-        updateUI();
-      }
-
-      function resetSimulation() {
-        resetGrid();
-        isSimulationRunning = false;
-        updateUI();
-        displayGrid();
-      }
-      function updateUI() {
-        const gridSizeInput = document.getElementById("gridSizeInput");
-        gridSizeInput.disabled = isSimulationRunning;
-
-        document.getElementById("playButton").disabled = isSimulationRunning;
-        document.getElementById("stopButton").disabled = !isSimulationRunning;
-      }
-
-      function resetGrid() {
-        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill([...STATES]));
-        lastCollapsedCell = null;
-      }
-
-      function displayGrid() {
-        return new Promise((resolve) => {
-          requestAnimationFrame(() => {
-            ctx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-            gridCanvas.width = GRID_SIZE * cellSize;
-            gridCanvas.height = GRID_SIZE * cellSize;
-
-            grid.forEach((row, rowIndex) => {
-              row.forEach((cellState, columnIndex) => {
-                ctx.fillStyle = cellState.length === 1 ? (cellState[0] === "black" ? "black" : "white") : "lightgrey";
-                ctx.fillRect(columnIndex * cellSize, rowIndex * cellSize, cellSize, cellSize);
-              });
-            });
-            resolve();
-          });
-        });
-      }
-
-      async function performWaveFunctionCollapseStep() {
-        if (!isSimulationRunning) {
-          updateUI();
-          return;
-        }
-
-        const cell = selectCellToCollapse();
-        if (cell) {
-          collapseCellAndPropagate(cell);
-        }
-
-        collapsesSinceLastPaint++;
-        if (collapsesSinceLastPaint >= SPEED || isGridFullyCollapsed()) {
-          await displayGrid();
-          collapsesSinceLastPaint = 0;
-        }
-
-        if (!isGridFullyCollapsed()) {
-          performWaveFunctionCollapseStep();
-        } else {
-          endSimulation();
-        }
-      }
-
-      function collapseCellAndPropagate(cell) {
-        collapseCell(cell);
-        propagateConstraints();
-        currentIndex++;
-      }
-
-      function endSimulation() {
-        isSimulationRunning = false;
-        document.getElementById("stopButton").disabled = true;
-        updateUI();
-      }
-
-      function selectCellToCollapse() {
-        const collapseMethod = document.getElementById("collapseMethodSelect").value;
-        switch (collapseMethod) {
-          case "middleOut":
-            return selectCellMiddleOut();
-          case "nextToLastCollapsed":
-            return selectCellNextToLastCollapsed();
-          case "mostCollapsedNeighbors":
-            return selectCellMostCollapsedNeighbors();
-          default:
-            return null;
-        }
-      }
-
-      function selectCellMiddleOut() {
-        let minDistance = Infinity;
-        let closestCell = null;
-
-        const centerRow = Math.floor(GRID_SIZE / 2);
-        const centerColumn = Math.floor(GRID_SIZE / 2);
-
-        for (let row = 0; row < GRID_SIZE; row++) {
-          for (let column = 0; column < GRID_SIZE; column++) {
-            if (grid[row][column].length > 1) {
-              let distance = calculateDistance(row, column, centerRow, centerColumn);
-              if (distance < minDistance) {
-                minDistance = distance;
-                closestCell = { row, column };
-              }
-            }
+          // Check the 2×2 block we would complete: NW, N, W, X
+          if (
+            r > 0 && c > 0 &&
+            g[r - 1][c - 1] === g[r - 1][c] &&
+            g[r - 1][c] === g[r][c - 1]
+          ) {
+            forbidden = g[r - 1][c - 1];
           }
-        }
 
-        return closestCell;
-      }
-
-      function calculateDistance(row1, col1, row2, col2) {
-        return Math.sqrt(Math.pow(row1 - row2, 2) + Math.pow(col1 - col2, 2));
-      }
-
-      function selectCellNextToLastCollapsed() {
-        let potentialCells = [];
-
-        if (lastCollapsedCell) {
-          const neighbors = getNeighbors(lastCollapsedCell.row, lastCollapsedCell.column, GRID_SIZE);
-          potentialCells = neighbors.filter((neighbor) => grid[neighbor.row][neighbor.column].length > 1);
-        }
-
-        if (potentialCells.length === 0) {
-          // No available neighbors, fallback to selecting from any uncollapsed cells
-          for (let row = 0; row < GRID_SIZE; row++) {
-            for (let column = 0; column < GRID_SIZE; column++) {
-              if (grid[row][column].length > 1) {
-                potentialCells.push({ row, column });
-              }
-            }
-          }
-        }
-
-        if (potentialCells.length > 0) {
-          const randomIndex = Math.floor(Math.random() * potentialCells.length);
-          return potentialCells[randomIndex];
-        }
-
-        return null;
-      }
-
-      function selectCellMostCollapsedNeighbors() {
-        let maxCollapsedNeighbors = -1;
-        let potentialCells = [];
-
-        for (let row = 0; row < GRID_SIZE; row++) {
-          for (let column = 0; column < GRID_SIZE; column++) {
-            if (grid[row][column].length > 1) {
-              let collapsedNeighbors = countCollapsedNeighbors(row, column);
-              if (collapsedNeighbors > maxCollapsedNeighbors) {
-                maxCollapsedNeighbors = collapsedNeighbors;
-                potentialCells = [{ row, column }];
-              } else if (collapsedNeighbors === maxCollapsedNeighbors) {
-                potentialCells.push({ row, column });
-              }
-            }
-          }
-        }
-
-        if (potentialCells.length > 0) {
-          const randomIndex = Math.floor(Math.random() * potentialCells.length);
-          return potentialCells[randomIndex];
-        }
-
-        return null;
-      }
-
-      function countCollapsedNeighbors(row, column) {
-        const neighbors = getNeighbors(row, column, GRID_SIZE);
-        return neighbors.reduce((count, neighbor) => {
-          return count + (grid[neighbor.row][neighbor.column].length === 1 ? 1 : 0);
-        }, 0);
-      }
-
-      function collapseCell(cell) {
-        let { row, column } = cell;
-        let cellStates = grid[row][column];
-        let collapsedState = null;
-
-        if (cellStates.length > 1) {
-          collapsedState = cellStates[Math.floor(Math.random() * cellStates.length)];
-          grid[row][column] = [collapsedState];
-          lastCollapsedCell = { row, column }; // Update lastCollapsedCell
-          decisionStack.push([{ row, column }]);
-        }
-
-        return collapsedState;
-      }
-
-      function propagateConstraints() {
-        const breakingFields = new Set();
-        let changesMade = false;
-        do {
-          changesMade = false;
-          for (let row = 0; row < GRID_SIZE; row++) {
-            for (let column = 0; column < GRID_SIZE; column++) {
-              if (grid[row][column].length > 1) {
-                let newStates = grid[row][column].filter((state) => isValidState(row, column, state));
-
-                if (newStates.length !== grid[row][column].length) {
-                  grid[row][column] = newStates;
-                  lastCollapsedCell = { row, column }; // Update lastCollapsedCell
-                  decisionStack[decisionStack.length - 1].push({ row, column }); //these decisions are consequences of the last collapsed cell. Have to be reverted together
-                  changesMade = true;
-                }
-
-                if (newStates.length === 0) {
-                  backTrackUntilFixed();
-                  return;
-                }
-              }
-            }
-          }
-        } while (changesMade);
-      }
-
-      function isValidState(row, column, state) {
-        const gridSize = grid.length;
-        grid[row][column] = [state];
-
-        // Check all 2x2 grids including the cell (row, column)
-        for (let dRow = -1; dRow <= 0; dRow++) {
-          for (let dColumn = -1; dColumn <= 0; dColumn++) {
-            if (!is2x2Valid(dRow + row, dColumn + column)) {
-              grid[row][column] = STATES;
-              return false;
-            }
-          }
-        }
-        grid[row][column] = STATES;
-        return true;
-      }
-
-      function is2x2Valid(topLeftRow, topLeftColumn) {
-        if (!isWithinGridBounds(topLeftRow, topLeftColumn)) {
-          return true;
-        }
-
-        const cells = get2x2Cells(topLeftRow, topLeftColumn);
-        if (!areAllCellsCollapsed(cells)) {
-          return true;
-        }
-
-        return !areAllColorsSame(cells) && !isCheckeredPattern(cells);
-      }
-
-      function isWithinGridBounds(row, column) {
-        const gridSize = grid.length;
-        return row >= 0 && column >= 0 && row < gridSize - 1 && column < gridSize - 1;
-      }
-
-      function get2x2Cells(row, column) {
-        return [grid[row][column], grid[row + 1][column], grid[row][column + 1], grid[row + 1][column + 1]];
-      }
-
-      function areAllCellsCollapsed(cells) {
-        return cells.every((cell) => cell.length === 1);
-      }
-
-      function areAllColorsSame(cells) {
-        const firstColor = cells[0][0];
-        return cells.every((cell) => cell[0] === firstColor);
-      }
-
-      function isCheckeredPattern(cells) {
-        return cells[0][0] === cells[3][0] && cells[1][0] === cells[2][0] && cells[0][0] !== cells[1][0];
-      }
-
-      function isGridFullyCollapsed() {
-        return grid.every((row) => row.every((cell) => cell.length === 1));
-      }
-
-      function getNeighbors(row, column, gridSize) {
-        let neighbors = [];
-        for (let dRow = -1; dRow <= 1; dRow++) {
-          for (let dColumn = -1; dColumn <= 1; dColumn++) {
-            if (dRow === 0 && dColumn === 0) continue; // Skip the cell itself
-            let nRow = row + dRow;
-            let nColumn = column + dColumn;
-            if (nRow >= 0 && nRow < gridSize && nColumn >= 0 && nColumn < gridSize) {
-              neighbors.push({ row: nRow, column: nColumn });
-            }
-          }
-        }
-        return neighbors;
-      }
-
-      function backTrackUntilFixed() {
-        if (gridBreaksRules()) {
-          requestAnimationFrame(() => {
-            backTrackDecision();
-            backTrackUntilFixed(); // Recursively call the function until the grid no longer breaks the rules.
-          });
+          // Choose a colour that is not forbidden (0 = white, 1 = black)
+          const choices = forbidden === null ? [0, 1] : [1 - forbidden];
+          g[r][c] = choices[Math.floor(Math.random() * choices.length)];
         }
       }
+      return g;
+    }
 
-      function gridBreaksRules() {
-        let result = false;
-        grid.forEach((row, rowIndex) => {
-          row.forEach((cell, columnIndex) => {
-            if (cell.length === 0) {
-              result = true;
-            }
-          });
-        });
+    /** Draw the binary grid on the <canvas>. */
+    function drawGrid(grid) {
+      const canvas = document.getElementById("grid");
+      const ctx = canvas.getContext("2d");
+      const rows = grid.length;
+      const cols = grid[0].length;
+      const cellSize = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
 
-        return result;
-      }
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      function backTrackDecision() {
-        if (decisionStack.length === 0) {
-          resetGrid();
-          return;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          ctx.fillStyle = grid[r][c] ? "#000" : "#fff";
+          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
         }
-
-        let stepsToBacktrack = Math.min(3, decisionStack.length);
-        for (let i = 0; i < stepsToBacktrack; i++) {
-          const lastDecision = decisionStack.pop();
-          lastDecision.forEach((decisionConsequence) => {
-            const { row, column } = decisionConsequence;
-            grid[row][column] = STATES;
-          });
-        }
-
-        lastCollapsedCell = decisionStack.length > 0 ? { ...decisionStack[decisionStack.length - 1][0] } : null;
-        requestAnimationFrame(displayGrid);
       }
+    }
 
-      initialize();
-    </script>
-  </body>
+    /** Generate a new grid using the current size input. */
+    function run() {
+      const s = parseInt(document.getElementById("size").value, 10);
+      const grid = generateGrid(s, s);
+      drawGrid(grid);
+    }
+
+    document.getElementById("generate").addEventListener("click", run);
+    window.addEventListener("load", run); // initial draw on page load
+  </script>
+</body>
 </html>
