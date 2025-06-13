@@ -1,150 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>No 2×2 Monochrome or Checkerboard Grid — Reduced “Stairs”</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, sans-serif; text-align: center; margin: 2rem; }
-    canvas {
-      border: 1px solid #444;
-      aspect-ratio: 1 / 1;
-      max-width: 90vmin;
-      height: auto;
-    }
-    #controls { margin-top: 1rem; display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
-    input, button { padding: 0.3rem 0.6rem; font-size: 1rem; border-radius: 0.5rem; border: 1px solid #777; }
-    button { cursor: pointer; background: #f5f5f5; transition: background 0.2s; }
-    button:hover { background: #e0e0e0; }
-    #legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; margin-top: 1rem; }
-    .swatch { width: 1.2rem; height: 1.2rem; border: 1px solid #333; border-radius: 0.2rem; }
-  </style>
+<meta charset="UTF-8" />
+<title>Back‑tracking WFC – Animated Reveal</title>
+<style>
+  body   { font-family: system-ui, sans-serif; text-align:center; margin:2rem; }
+  canvas { border:1px solid #444; aspect-ratio:1/1; max-width:90vmin; height:auto; }
+  #controls{ margin-top:1rem; display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; }
+  input,button{ padding:.3rem .6rem; font-size:1rem; border-radius:.5rem; border:1px solid #777; }
+  button { cursor:pointer; background:#f5f5f5; }
+  button:hover{ background:#e0e0e0; }
+</style>
 </head>
 <body>
-  <h1>No 2×2 Monochrome <em>or</em> Checkerboard Grid</h1>
-  <canvas id="grid" width="400" height="400"></canvas>
+<h1>Wave‑Function‑Collapse (back‑tracking)<br><small>Animated cell‑by‑cell reveal</small></h1>
+<canvas id="grid" width="400" height="400"></canvas>
+<div id="controls">
+  <label>Size n: <input id="size"   type="number" value="30" min="4" max="120" step="1"></label>
+  <label>Colours: <input id="colors" type="number" value="3"  min="2" max="8"  step="1"></label>
+  <label><input id="animate" type="checkbox" checked> Animate</label>
+  <label>Speed (ms): <input id="speed"  type="number" value="30" min="5" max="500" step="5"></label>
+  <button id="generate">Generate</button>
+</div>
+<script>
+const cv=document.getElementById('grid'); const ctx=cv.getContext('2d');
+const colour=(i,k)=>k===2?(i?"#000":"#fff"):`hsl(${(i*360)/k} 70% 50%)`;
+function forbidden(nw,n,w,x){
+  if(nw===undefined||n===undefined||w===undefined) return false;
+  // Monochrome 2×2
+  if(nw===n && n===w && w===x) return true;
+  if(nw===x && n===w && nw!==n) return true;
+  if(nw===w && n===x && nw!==n) return true;
+  return false;
+}
+function solveWFC(n,k){
+  const g=Array.from({length:n},()=>Array(n).fill(null));
+  const order=[...Array(n*n).keys()].map(i=>[Math.floor(i/n),i%n]);
+  const palette=[...Array(k).keys()];
+  function valid(r,c,col){
+    const nw=r>0&&c>0?g[r-1][c-1]:undefined;
+    const n =r>0?g[r-1][c]:undefined;
+    const w =c>0?g[r][c-1]:undefined;
+    return !forbidden(nw,n,w,col);
+  }
+  function bt(idx){
+    if(idx===order.length) return true;
+    const [r,c]=order[idx];
+    const choices=[...palette].sort(()=>Math.random()-.5);
+    for(const col of choices){ if(valid(r,c,col)){ g[r][c]=col; if(bt(idx+1)) return true; g[r][c]=null; } }
+    return false;
+  }
+  if(!bt(0)) throw Error('No solution (unexpected)');
+  return g;
+}
+function drawCell(r,c,val,k,n){
+  const cell=Math.floor(Math.min(cv.width,cv.height)/n);
+  ctx.fillStyle=colour(val,k);
+  ctx.fillRect(c*cell,r*cell,cell,cell);
+}
+function animateGrid(grid,k,interval){
+  const n=grid.length; ctx.clearRect(0,0,cv.width,cv.height);
+  const order=[...Array(n*n).keys()].sort(()=>Math.random()-.5); // random reveal order
+  let idx=0;
+  function step(){
+    const pos=order[idx]; const r=Math.floor(pos/n), c=pos% n;
+    drawCell(r,c,grid[r][c],k,n);
+    idx++; if(idx<order.length) setTimeout(step,interval);
+  }
+  step();
+}
+function drawInstant(grid,k){ const n=grid.length; for(let r=0;r<n;r++)for(let c=0;c<n;c++) drawCell(r,c,grid[r][c],k,n); }
 
-  <div id="controls">
-    <label>Grid size (n × n):
-      <input type="number" id="size" value="20" min="4" max="200" step="1" />
-    </label>
-    <label>Colours:
-      <input type="number" id="colors" value="2" min="2" max="20" step="1" />
-    </label>
-    <button id="generate">Generate</button>
-  </div>
-
-  <div id="legend"></div>
-
-  <script>
-    /*──────────────── helper: palette ────────────────*/
-    function indexToColour(i, k) {
-      if (k === 2) return i === 0 ? "#fff" : "#000";
-      return `hsl(${(i * 360) / k} 70% 50%)`;
-    }
-
-    /*──────────────── 2×2 filter ────────────────────*/
-    function isForbidden(nw, n, w, x) {
-      if (nw === n && n === w && w === x) return true;                 // monochrome
-      if (nw === x && n === w && nw !== n) return true;                // checker A
-      if (nw === w && n === x && nw !== n) return true;                // checker B
-      return false;
-    }
-
-    /*──────────────── grid generator ────────────────*/
-    function generateGrid(rows, cols, k) {
-      const g = Array.from({ length: rows }, () => Array(cols));
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          // 1. Collect legal colours
-          const legal = [];
-          for (let colour = 0; colour < k; colour++) {
-            if (r === 0 || c === 0) {                      // first row/col: any colour is legal
-              legal.push(colour);
-            } else {
-              const nw = g[r - 1][c - 1];
-              const n  = g[r - 1][c];
-              const w  = g[r][c - 1];
-              if (!isForbidden(nw, n, w, colour)) legal.push(colour);
-            }
-          }
-
-          // 2. If we are on first row *or* first column, pick uniformly at random
-          if (r === 0 || c === 0) {
-            g[r][c] = legal[Math.floor(Math.random() * legal.length)];
-            continue;
-          }
-
-          // 3. Otherwise apply anti‑stair heuristic
-          let best = legal[0];
-          let bestScore = Infinity;
-          for (const colour of legal) {
-            let score = 0;
-
-            // favour straight continuation
-            if (colour !== g[r - 1][c]) score += 1; // vertical mismatch penalty
-            if (colour !== g[r][c - 1]) score += 1; // horizontal mismatch penalty
-
-            // avoid 2×2 "stair" (diagonal step) motif
-            const nw = g[r - 1][c - 1];
-            const n  = g[r - 1][c];
-            const w  = g[r][c - 1];
-            const step1 = nw === colour && n !== colour && w !== colour;
-            const step2 = nw !== colour && n === colour && w === colour;
-            if (step1 || step2) score += 2;
-
-            if (score < bestScore || (score === bestScore && Math.random() < 0.5)) {
-              bestScore = score;
-              best = colour;
-            }
-          }
-          g[r][c] = best;
-        }
-      }
-      return g;
-    }
-
-    /*──────────────── canvas draw ───────────────────*/
-    function drawGrid(grid, k) {
-      const canvas = document.getElementById("grid");
-      const ctx = canvas.getContext("2d");
-      const rows = grid.length;
-      const cols = grid[0].length;
-      const cell = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          ctx.fillStyle = indexToColour(grid[r][c], k);
-          ctx.fillRect(c * cell, r * cell, cell, cell);
-        }
-      }
-    }
-
-    /*──────────────── legend ───────────────────────*/
-    function drawLegend(k) {
-      const legend = document.getElementById("legend");
-      legend.innerHTML = "";
-      for (let i = 0; i < k; i++) {
-        const sw = document.createElement("div");
-        sw.className = "swatch";
-        sw.style.background = indexToColour(i, k);
-        legend.appendChild(sw);
-      }
-    }
-
-    /*──────────────── main hook ────────────────────*/
-    function run() {
-      const size = Math.max(4, +document.getElementById("size").value || 20);
-      const k    = Math.max(2, +document.getElementById("colors").value || 2);
-      const grid = generateGrid(size, size, k);
-      drawGrid(grid, k);
-      drawLegend(k);
-    }
-
-    document.getElementById("generate").addEventListener("click", run);
-    window.addEventListener("load", run);
-  </script>
+document.getElementById('generate').addEventListener('click',()=>{
+  const n=Math.max(4,+document.getElementById('size').value||30);
+  const k=Math.max(2,+document.getElementById('colors').value||3);
+  const animate=document.getElementById('animate').checked;
+  const speed=Math.max(5,+document.getElementById('speed').value||30);
+  const grid=solveWFC(n,k);
+  animate?animateGrid(grid,k,speed):drawInstant(grid,k);
+});
+window.addEventListener('load',()=>document.getElementById('generate').click());
+</script>
 </body>
 </html>
