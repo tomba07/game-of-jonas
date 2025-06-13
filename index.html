@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>No 2×2 Monochrome Grid Demo</title>
+  <meta charset="UTF-8" />
+  <title>Multi‑Colour – No 2×2 Monochrome Grid Demo</title>
   <style>
+    :root { color-scheme: light dark; }
     body {
       font-family: system-ui, sans-serif;
       text-align: center;
@@ -34,28 +35,58 @@
       transition: background 0.2s;
     }
     button:hover { background: #e0e0e0; }
+
+    /* optional colour legend */
+    #legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.3rem;
+      margin-top: 1rem;
+    }
+    .swatch {
+      width: 1.2rem;
+      height: 1.2rem;
+      border: 1px solid #333;
+      border-radius: 0.2rem;
+    }
   </style>
 </head>
 <body>
-  <h1>No 2×2 Monochrome Grid Demo</h1>
+  <h1>No 2×2 Monochrome Grid – Multiple Colours</h1>
   <canvas id="grid" width="400" height="400"></canvas>
 
   <div id="controls">
-    <label>Grid size (n × n):
-      <input type="number" id="size" value="20" min="4" max="200" step="1">
+    <label>Grid size (n × n):
+      <input type="number" id="size" value="20" min="4" max="200" step="1" />
+    </label>
+    <label>Colours:
+      <input type="number" id="colors" value="2" min="2" max="20" step="1" />
     </label>
     <button id="generate">Generate</button>
   </div>
 
+  <div id="legend"></div>
+
   <script>
-    /** Greedy fill that avoids monochrome 2×2 blocks. */
-    function generateGrid(rows, cols) {
+    /** Utility: map colour index ➜ distinct HSL string */
+    function indexToColour(i, k) {
+      if (k === 2) {
+        return i === 0 ? "#fff" : "#000"; // keep classic BW for binary case
+      }
+      const hue = (i * 360) / k; // equally spaced hues
+      return `hsl(${hue} 70% 50%)`;
+    }
+
+    /** Greedy fill that avoids monochrome 2×2 blocks for k colours. */
+    function generateGrid(rows, cols, k) {
       const g = Array.from({ length: rows }, () => Array(cols).fill(0));
+
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           let forbidden = null;
 
-          // Check the 2×2 block we would complete: NW, N, W, X
+          // Only the NW, N, W cells are relevant (already decided)
           if (
             r > 0 && c > 0 &&
             g[r - 1][c - 1] === g[r - 1][c] &&
@@ -64,38 +95,58 @@
             forbidden = g[r - 1][c - 1];
           }
 
-          // Choose a colour that is not forbidden (0 = white, 1 = black)
-          const choices = forbidden === null ? [0, 1] : [1 - forbidden];
+          // Collect allowed colours
+          const choices = [];
+          for (let col = 0; col < k; col++) {
+            if (col !== forbidden) choices.push(col);
+          }
+          // Pick one uniformly at random
           g[r][c] = choices[Math.floor(Math.random() * choices.length)];
         }
       }
       return g;
     }
 
-    /** Draw the binary grid on the <canvas>. */
-    function drawGrid(grid) {
+    /** Draw the grid on the <canvas>. */
+    function drawGrid(grid, k) {
       const canvas = document.getElementById("grid");
       const ctx = canvas.getContext("2d");
       const rows = grid.length;
       const cols = grid[0].length;
-      const cellSize = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
+      const cellSize = Math.floor(
+        Math.min(canvas.width / cols, canvas.height / rows)
+      );
 
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          ctx.fillStyle = grid[r][c] ? "#000" : "#fff";
+          ctx.fillStyle = indexToColour(grid[r][c], k);
           ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
         }
       }
     }
 
-    /** Generate a new grid using the current size input. */
+    /** Update colour legend swatches. */
+    function drawLegend(k) {
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      for (let i = 0; i < k; i++) {
+        const swatch = document.createElement("div");
+        swatch.className = "swatch";
+        swatch.style.background = indexToColour(i, k);
+        legend.appendChild(swatch);
+      }
+    }
+
+    /** Generate a new grid using current UI settings. */
     function run() {
-      const s = parseInt(document.getElementById("size").value, 10);
-      const grid = generateGrid(s, s);
-      drawGrid(grid);
+      const size = parseInt(document.getElementById("size").value, 10);
+      let k = parseInt(document.getElementById("colors").value, 10);
+      if (isNaN(k) || k < 2) k = 2;
+      const grid = generateGrid(size, size, k);
+      drawGrid(grid, k);
+      drawLegend(k);
     }
 
     document.getElementById("generate").addEventListener("click", run);
