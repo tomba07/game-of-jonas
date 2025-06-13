@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Multi‑Colour – No 2×2 Monochrome Grid Demo</title>
+  <title>No 2×2 Monochrome **or Checkerboard** Grid Demo</title>
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -53,7 +53,7 @@
   </style>
 </head>
 <body>
-  <h1>No 2×2 Monochrome Grid – Multiple Colours</h1>
+  <h1>No 2×2 Monochrome <em>or Checkerboard</em> Grid</h1>
   <canvas id="grid" width="400" height="400"></canvas>
 
   <div id="controls">
@@ -69,53 +69,77 @@
   <div id="legend"></div>
 
   <script>
-    /** Utility: map colour index ➜ distinct HSL string */
+    /* =====================================================================
+       Helper: map colour index ➜ visible colour (HSL for multi‑colour, BW when k=2)
+    ===================================================================== */
     function indexToColour(i, k) {
-      if (k === 2) {
-        return i === 0 ? "#fff" : "#000"; // keep classic BW for binary case
-      }
-      const hue = (i * 360) / k; // equally spaced hues
+      if (k === 2) return i === 0 ? "#fff" : "#000";
+      const hue = (i * 360) / k;
       return `hsl(${hue} 70% 50%)`;
     }
 
-    /** Greedy fill that avoids monochrome 2×2 blocks for k colours. */
+    /* =====================================================================
+       Forbidden‑pattern detector for a 2×2 block.
+       Returns true if block is monochrome OR checkerboard.
+       Inputs are integers 0..k‑1 (already chosen colours).
+    ===================================================================== */
+    function isForbidden(nw, n, w, x) {
+      // Monochrome
+      if (nw === n && n === w && w === x) return true;
+
+      // Checkerboard orientation 1:  nw  n
+      //                             w   x   where nw==x, n==w, and those two colours differ
+      if (nw === x && n === w && nw !== n) return true;
+
+      // Checkerboard orientation 2:  nw  n
+      //                             w   x   where nw==w, n==x, and those two colours differ
+      if (nw === w && n === x && nw !== n) return true;
+
+      return false; // pattern allowed
+    }
+
+    /* =====================================================================
+       Greedy fill that avoids **both** monochrome *and* checkerboard 2×2 blocks.
+    ===================================================================== */
     function generateGrid(rows, cols, k) {
-      const g = Array.from({ length: rows }, () => Array(cols).fill(0));
+      const g = Array.from({ length: rows }, () => Array(cols).fill(null));
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          let forbidden = null;
-
-          // Only the NW, N, W cells are relevant (already decided)
-          if (
-            r > 0 && c > 0 &&
-            g[r - 1][c - 1] === g[r - 1][c] &&
-            g[r - 1][c] === g[r][c - 1]
-          ) {
-            forbidden = g[r - 1][c - 1];
-          }
-
-          // Collect allowed colours
           const choices = [];
-          for (let col = 0; col < k; col++) {
-            if (col !== forbidden) choices.push(col);
+          for (let colour = 0; colour < k; colour++) {
+            // If we are on first row/col, no complete 2×2 block yet ⇒ always allowed
+            if (r === 0 || c === 0) {
+              choices.push(colour);
+              continue;
+            }
+            const nw = g[r - 1][c - 1];
+            const n  = g[r - 1][c];
+            const w  = g[r][c - 1];
+            if (!isForbidden(nw, n, w, colour)) choices.push(colour);
           }
-          // Pick one uniformly at random
+
+          // Safety: there should *always* be at least one legal colour.
+          if (choices.length === 0) {
+            console.error(`No legal colour at (${r},${c}). This should never happen.`);
+            choices.push(0); // fallback to avoid crash
+          }
+
           g[r][c] = choices[Math.floor(Math.random() * choices.length)];
         }
       }
       return g;
     }
 
-    /** Draw the grid on the <canvas>. */
+    /* =====================================================================
+       Draw the grid on the canvas
+    ===================================================================== */
     function drawGrid(grid, k) {
       const canvas = document.getElementById("grid");
       const ctx = canvas.getContext("2d");
       const rows = grid.length;
       const cols = grid[0].length;
-      const cellSize = Math.floor(
-        Math.min(canvas.width / cols, canvas.height / rows)
-      );
+      const cellSize = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -127,7 +151,9 @@
       }
     }
 
-    /** Update colour legend swatches. */
+    /* =====================================================================
+       Colour‑legend helper
+    ===================================================================== */
     function drawLegend(k) {
       const legend = document.getElementById("legend");
       legend.innerHTML = "";
@@ -139,18 +165,22 @@
       }
     }
 
-    /** Generate a new grid using current UI settings. */
+    /* =====================================================================
+       Main UI hook
+    ===================================================================== */
     function run() {
-      const size = parseInt(document.getElementById("size").value, 10);
-      let k = parseInt(document.getElementById("colors").value, 10);
-      if (isNaN(k) || k < 2) k = 2;
+      const sizeInput = document.getElementById("size");
+      const colourInput = document.getElementById("colors");
+      const size = Math.max(4, parseInt(sizeInput.value, 10) || 20);
+      let k    = Math.max(2, parseInt(colourInput.value, 10) || 2);
+
       const grid = generateGrid(size, size, k);
       drawGrid(grid, k);
       drawLegend(k);
     }
 
     document.getElementById("generate").addEventListener("click", run);
-    window.addEventListener("load", run); // initial draw on page load
+    window.addEventListener("load", run);
   </script>
 </body>
 </html>
