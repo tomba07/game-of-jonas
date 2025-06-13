@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Back‑tracking WFC – Animated Reveal</title>
+<title>Back‑tracking WFC – Animated Reveal (Iterative)</title>
 <style>
   body   { font-family: system-ui, sans-serif; text-align:center; margin:2rem; }
   canvas { border:1px solid #444; aspect-ratio:1/1; max-width:90vmin; height:auto; }
@@ -13,13 +13,13 @@
 </style>
 </head>
 <body>
-<h1>Wave‑Function‑Collapse (back‑tracking)<br><small>Animated cell‑by‑cell reveal</small></h1>
+<h1>Wave‑Function‑Collapse (iterative back‑tracking)<br><small>Handles large grids without recursion overflow</small></h1>
 <canvas id="grid" width="400" height="400"></canvas>
 <div id="controls">
-  <label>Size n: <input id="size"   type="number" value="30" min="4" max="120" step="1"></label>
-  <label>Colours: <input id="colors" type="number" value="3"  min="2" max="8"  step="1"></label>
+  <label>Size n: <input id="size"   type="number" value="20" min="4" max="120" step="1"></label>
+  <label>Colours: <input id="colors" type="number" value="2"  min="2" max="8"  step="1"></label>
   <label><input id="animate" type="checkbox" checked> Animate</label>
-  <label>Speed (ms): <input id="speed"  type="number" value="30" min="5" max="500" step="5"></label>
+  <label>Speed (ms): <input id="speed"  type="number" value="5" min="5" max="500" step="5"></label>
   <button id="generate">Generate</button>
 </div>
 <script>
@@ -27,59 +27,60 @@ const cv=document.getElementById('grid'); const ctx=cv.getContext('2d');
 const colour=(i,k)=>k===2?(i?"#000":"#fff"):`hsl(${(i*360)/k} 70% 50%)`;
 function forbidden(nw,n,w,x){
   if(nw===undefined||n===undefined||w===undefined) return false;
-  // Monochrome 2×2
   if(nw===n && n===w && w===x) return true;
   if(nw===x && n===w && nw!==n) return true;
   if(nw===w && n===x && nw!==n) return true;
   return false;
 }
 function solveWFC(n,k){
-  const g=Array.from({length:n},()=>Array(n).fill(null));
+  const grid=Array.from({length:n},()=>Array(n).fill(null));
   const order=[...Array(n*n).keys()].map(i=>[Math.floor(i/n),i%n]);
   const palette=[...Array(k).keys()];
-  function valid(r,c,col){
-    const nw=r>0&&c>0?g[r-1][c-1]:undefined;
-    const n =r>0?g[r-1][c]:undefined;
-    const w =c>0?g[r][c-1]:undefined;
-    return !forbidden(nw,n,w,col);
-  }
-  function bt(idx){
-    if(idx===order.length) return true;
-    const [r,c]=order[idx];
-    const choices=[...palette].sort(()=>Math.random()-.5);
-    for(const col of choices){ if(valid(r,c,col)){ g[r][c]=col; if(bt(idx+1)) return true; g[r][c]=null; } }
-    return false;
-  }
-  if(!bt(0)) throw Error('No solution (unexpected)');
-  return g;
-}
-function drawCell(r,c,val,k,n){
-  const cell=Math.floor(Math.min(cv.width,cv.height)/n);
-  ctx.fillStyle=colour(val,k);
-  ctx.fillRect(c*cell,r*cell,cell,cell);
-}
-function animateGrid(grid,k,interval){
-  const n=grid.length; ctx.clearRect(0,0,cv.width,cv.height);
-  const order=[...Array(n*n).keys()].sort(()=>Math.random()-.5); // random reveal order
+  // state stack: {idx, choicesIndex, choices[]}
+  const stack=[];
   let idx=0;
-  function step(){
-    const pos=order[idx]; const r=Math.floor(pos/n), c=pos% n;
-    drawCell(r,c,grid[r][c],k,n);
-    idx++; if(idx<order.length) setTimeout(step,interval);
+  while(true){
+    if(idx===order.length) return grid; // solved
+    const [r,c]=order[idx];
+    let frame=stack[idx];
+    if(!frame){
+      // create new frame
+      const validColours=palette.filter(col=>{
+        const nw=r&&c?grid[r-1][c-1]:undefined;
+        const n =r?grid[r-1][c]:undefined;
+        const w =c?grid[r][c-1]:undefined;
+        return !forbidden(nw,n,w,col);
+      }).sort(()=>Math.random()-.5);
+      frame={choices:validColours, choiceIdx:0};
+      stack[idx]=frame;
+    }
+    if(frame.choiceIdx>=frame.choices.length){
+      // backtrack
+      stack[idx]=null;
+      idx--; if(idx<0) throw Error('No solution');
+      const [br,bc]=order[idx];
+      grid[br][bc]=null;
+      stack[idx].choiceIdx++;
+      continue;
+    }
+    // try choice
+    const col=frame.choices[frame.choiceIdx];
+    grid[r][c]=col;
+    idx++; // advance
   }
-  step();
 }
+function drawCell(r,c,val,k,n){ const cell=Math.floor(Math.min(cv.width,cv.height)/n); ctx.fillStyle=colour(val,k); ctx.fillRect(c*cell,r*cell,cell,cell); }
+function animateGrid(grid,k,interval){ const n=grid.length; ctx.clearRect(0,0,cv.width,cv.height); const order=[...Array(n*n).keys()].sort(()=>Math.random()-.5); let i=0; (function step(){ const pos=order[i++]; const r=Math.floor(pos/n),c=pos%n; drawCell(r,c,grid[r][c],k,n); if(i<order.length) setTimeout(step,interval); })(); }
 function drawInstant(grid,k){ const n=grid.length; for(let r=0;r<n;r++)for(let c=0;c<n;c++) drawCell(r,c,grid[r][c],k,n); }
 
 document.getElementById('generate').addEventListener('click',()=>{
-  const n=Math.max(4,+document.getElementById('size').value||30);
-  const k=Math.max(2,+document.getElementById('colors').value||3);
+  const n=Math.max(4,+document.getElementById('size').value||20);
+  const k=Math.max(2,+document.getElementById('colors').value||2);
   const animate=document.getElementById('animate').checked;
-  const speed=Math.max(5,+document.getElementById('speed').value||30);
+  const speed=Math.max(5,+document.getElementById('speed').value||5);
   const grid=solveWFC(n,k);
   animate?animateGrid(grid,k,speed):drawInstant(grid,k);
 });
-window.addEventListener('load',()=>document.getElementById('generate').click());
 </script>
 </body>
 </html>
