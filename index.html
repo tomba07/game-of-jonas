@@ -1,86 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Back‑tracking WFC – Animated Reveal (Iterative)</title>
-<style>
-  body   { font-family: system-ui, sans-serif; text-align:center; margin:2rem; }
-  canvas { border:1px solid #444; aspect-ratio:1/1; max-width:90vmin; height:auto; }
-  #controls{ margin-top:1rem; display:flex; gap:.6rem; justify-content:center; flex-wrap:wrap; }
-  input,button{ padding:.3rem .6rem; font-size:1rem; border-radius:.5rem; border:1px solid #777; }
-  button { cursor:pointer; background:#f5f5f5; }
-  button:hover{ background:#e0e0e0; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constrained Grid</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            flex-direction: column;
+            gap: 20px;
+        }
+        #grid {
+            display: grid;
+            gap: 1px;
+            background-color: #333;
+            padding: 1px;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+        }
+        .black {
+            background-color: #000;
+        }
+        .white {
+            background-color: #fff;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input[type="number"] {
+            padding: 8px;
+            font-size: 16px;
+            width: 80px;
+        }
+    </style>
 </head>
 <body>
-<h1>Wave‑Function‑Collapse (iterative back‑tracking)<br><small>Handles large grids without recursion overflow</small></h1>
-<canvas id="grid" width="400" height="400"></canvas>
-<div id="controls">
-  <label>Size n: <input id="size"   type="number" value="20" min="4" max="120" step="1"></label>
-  <label>Colours: <input id="colors" type="number" value="2"  min="2" max="8"  step="1"></label>
-  <label><input id="animate" type="checkbox" checked> Animate</label>
-  <label>Speed (ms): <input id="speed"  type="number" value="5" min="5" max="500" step="5"></label>
-  <button id="generate">Generate</button>
-</div>
-<script>
-const cv=document.getElementById('grid'); const ctx=cv.getContext('2d');
-const colour=(i,k)=>k===2?(i?"#000":"#fff"):`hsl(${(i*360)/k} 70% 50%)`;
-function forbidden(nw,n,w,x){
-  if(nw===undefined||n===undefined||w===undefined) return false;
-  if(nw===n && n===w && w===x) return true;
-  if(nw===x && n===w && nw!==n) return true;
-  if(nw===w && n===x && nw!==n) return true;
-  return false;
-}
-function solveWFC(n,k){
-  const grid=Array.from({length:n},()=>Array(n).fill(null));
-  const order=[...Array(n*n).keys()].map(i=>[Math.floor(i/n),i%n]);
-  const palette=[...Array(k).keys()];
-  // state stack: {idx, choicesIndex, choices[]}
-  const stack=[];
-  let idx=0;
-  while(true){
-    if(idx===order.length) return grid; // solved
-    const [r,c]=order[idx];
-    let frame=stack[idx];
-    if(!frame){
-      // create new frame
-      const validColours=palette.filter(col=>{
-        const nw=r&&c?grid[r-1][c-1]:undefined;
-        const n =r?grid[r-1][c]:undefined;
-        const w =c?grid[r][c-1]:undefined;
-        return !forbidden(nw,n,w,col);
-      }).sort(()=>Math.random()-.5);
-      frame={choices:validColours, choiceIdx:0};
-      stack[idx]=frame;
-    }
-    if(frame.choiceIdx>=frame.choices.length){
-      // backtrack
-      stack[idx]=null;
-      idx--; if(idx<0) throw Error('No solution');
-      const [br,bc]=order[idx];
-      grid[br][bc]=null;
-      stack[idx].choiceIdx++;
-      continue;
-    }
-    // try choice
-    const col=frame.choices[frame.choiceIdx];
-    grid[r][c]=col;
-    idx++; // advance
-  }
-}
-function drawCell(r,c,val,k,n){ const cell=Math.floor(Math.min(cv.width,cv.height)/n); ctx.fillStyle=colour(val,k); ctx.fillRect(c*cell,r*cell,cell,cell); }
-function animateGrid(grid,k,interval){ const n=grid.length; ctx.clearRect(0,0,cv.width,cv.height); const order=[...Array(n*n).keys()].sort(()=>Math.random()-.5); let i=0; (function step(){ const pos=order[i++]; const r=Math.floor(pos/n),c=pos%n; drawCell(r,c,grid[r][c],k,n); if(i<order.length) setTimeout(step,interval); })(); }
-function drawInstant(grid,k){ const n=grid.length; for(let r=0;r<n;r++)for(let c=0;c<n;c++) drawCell(r,c,grid[r][c],k,n); }
+    <h2>Constrained Grid Generator</h2>
+    <p>No 2x2 blocks of single color, no checkered 2x2 patterns</p>
+    <div class="controls">
+        <label for="gridSize">Grid Size:</label>
+        <input type="number" id="gridSize" value="20" min="2" max="50">
+        <label for="symmetry">Symmetry:</label>
+        <select id="symmetry">
+            <option value="none" selected>None</option>
+            <option value="vertical">Vertical</option>
+            <option value="horizontal">Horizontal</option>
+        </select>
+        <button onclick="generateGrid()">Generate</button>
+    </div>
+    <div id="grid"></div>
 
-document.getElementById('generate').addEventListener('click',()=>{
-  const n=Math.max(4,+document.getElementById('size').value||20);
-  const k=Math.max(2,+document.getElementById('colors').value||2);
-  const animate=document.getElementById('animate').checked;
-  const speed=Math.max(5,+document.getElementById('speed').value||5);
-  const grid=solveWFC(n,k);
-  animate?animateGrid(grid,k,speed):drawInstant(grid,k);
-});
-</script>
+    <script>
+        let SIZE = 20;
+        let grid = [];
+        let symmetryMode = 'none';
+
+        function getSymmetricCells(row, col) {
+            const cells = [{ row, col }];
+
+            // Only apply symmetry for specific modes and only in specific regions
+            if (symmetryMode === 'vertical') {
+                const symCol = SIZE - 1 - col;
+                if (symCol !== col && col < SIZE / 2) {
+                    cells.push({ row, col: symCol });
+                }
+            }
+
+            if (symmetryMode === 'horizontal') {
+                const symRow = SIZE - 1 - row;
+                if (symRow !== row && row < SIZE / 2) {
+                    cells.push({ row: symRow, col });
+                }
+            }
+
+            return cells;
+        }
+
+        function isValidPattern(cells) {
+            // Check if all 4 cells are the same color
+            if (cells[0] === cells[1] && cells[1] === cells[2] && cells[2] === cells[3]) {
+                return false;
+            }
+
+            // Check for checkered pattern (alternating diagonals)
+            // Pattern 1: top-left and bottom-right same, top-right and bottom-left same
+            if (cells[0] === cells[3] && cells[1] === cells[2] && cells[0] !== cells[1]) {
+                return false;
+            }
+
+            return true;
+        }
+
+        function isValid(row, col, color) {
+            // Get all symmetric cells (only the current cell if symmetry is 'none')
+            const symmetricCells = symmetryMode === 'none' ? [{ row, col }] : getSymmetricCells(row, col);
+
+            // Temporarily set all symmetric cells to the same color
+            for (const cell of symmetricCells) {
+                grid[cell.row][cell.col] = color;
+            }
+
+            // Check all 2x2 blocks that include any of the symmetric cells
+            for (const cell of symmetricCells) {
+                for (let dr = -1; dr <= 0; dr++) {
+                    for (let dc = -1; dc <= 0; dc++) {
+                        const r = cell.row + dr;
+                        const c = cell.col + dc;
+
+                        // Check if this 2x2 block is within bounds
+                        if (r >= 0 && r < SIZE - 1 && c >= 0 && c < SIZE - 1) {
+                            // Get the 2x2 block
+                            const block = [
+                                grid[r][c],
+                                grid[r][c + 1],
+                                grid[r + 1][c],
+                                grid[r + 1][c + 1]
+                            ];
+
+                            // If all cells are filled, check the pattern
+                            if (block.every(cell => cell !== null)) {
+                                if (!isValidPattern(block)) {
+                                    // Reset all symmetric cells
+                                    for (const cell of symmetricCells) {
+                                        grid[cell.row][cell.col] = null;
+                                    }
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function getCenterOutOrder() {
+            // Generate order of cells starting from center and moving outwards
+            const centerRow = Math.floor(SIZE / 2);
+            const centerCol = Math.floor(SIZE / 2);
+            const cells = [];
+            const processed = new Set();
+
+            // Calculate distance from center for each cell
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE; j++) {
+                    const key = `${i},${j}`;
+
+                    // Skip if this cell is a symmetric duplicate we've already processed
+                    if (processed.has(key)) continue;
+
+                    const distance = Math.abs(i - centerRow) + Math.abs(j - centerCol);
+                    cells.push({ row: i, col: j, distance });
+
+                    // Mark all symmetric cells as processed
+                    if (symmetryMode !== 'none') {
+                        const symCells = getSymmetricCells(i, j);
+                        for (const symCell of symCells) {
+                            processed.add(`${symCell.row},${symCell.col}`);
+                        }
+                    }
+                }
+            }
+
+            // Sort by distance from center, with some randomization for cells at same distance
+            cells.sort((a, b) => {
+                if (a.distance !== b.distance) {
+                    return a.distance - b.distance;
+                }
+                // Add randomness for cells at the same distance
+                return Math.random() - 0.5;
+            });
+
+            return cells;
+        }
+
+        function solveWithOrder(cellOrder, index) {
+            if (index === cellOrder.length) {
+                return true;
+            }
+
+            const { row, col } = cellOrder[index];
+
+            // Skip if already filled (can happen with symmetry)
+            if (grid[row][col] !== null) {
+                return solveWithOrder(cellOrder, index + 1);
+            }
+
+            // Try black (0) first, with randomization
+            const colors = Math.random() < 0.5 ? [0, 1] : [1, 0];
+
+            for (const color of colors) {
+                if (isValid(row, col, color)) {
+                    if (solveWithOrder(cellOrder, index + 1)) {
+                        return true;
+                    }
+                }
+            }
+
+            // Reset all symmetric cells
+            const symmetricCells = symmetryMode === 'none' ? [{ row, col }] : getSymmetricCells(row, col);
+            for (const cell of symmetricCells) {
+                grid[cell.row][cell.col] = null;
+            }
+            return false;
+        }
+
+        function generateGrid() {
+            // Get size and symmetry from inputs
+            SIZE = parseInt(document.getElementById('gridSize').value);
+            symmetryMode = document.getElementById('symmetry').value;
+
+            if (SIZE < 2) SIZE = 2;
+            if (SIZE > 50) SIZE = 50;
+
+            // Initialize grid
+            grid = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
+
+            // Get center-out order
+            const cellOrder = getCenterOutOrder();
+
+            // Solve with backtracking using center-out order
+            if (solveWithOrder(cellOrder, 0)) {
+                renderGrid();
+            } else {
+                alert('Could not generate valid grid. Trying again...');
+                generateGrid();
+            }
+        }
+
+        function renderGrid() {
+            const gridElement = document.getElementById('grid');
+            gridElement.innerHTML = '';
+
+            // Update grid CSS
+            gridElement.style.gridTemplateColumns = `repeat(${SIZE}, 20px)`;
+            gridElement.style.gridTemplateRows = `repeat(${SIZE}, 20px)`;
+
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${grid[i][j] === 0 ? 'black' : 'white'}`;
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        // Generate initial grid
+        generateGrid();
+    </script>
 </body>
 </html>
